@@ -1,0 +1,54 @@
+Sending groups to device via Update Function:
+<load-configuration action="merge" format="xml">
+<configuration><groups><name>vsrx_1</name><interfaces><interface><name>ge-0/0/0</name><description>Test description</description></interface></interfaces></groups></configuration>
+</load-configuration>
+
+Sending groups to device via Update Function:
+<load-configuration action="merge" format="xml">
+<configuration><groups><name>vsrx_2</name><interfaces><interface><name>ge-0/0/0</name><unit><name>0</name><family><inet><address><name>10.0.0.1/24</name></address></inet></family></unit></interface></interfaces></groups></configuration>
+</load-configuration>
+
+
+Sending Apply-Groups to device
+<load-configuration action="merge" format="xml">
+<configuration><apply-groups>vsrx_1</apply-groups><apply-groups>vsrx_2</apply-groups></configuration>
+</load-configuration>
+Commiting from the SendCommit function
+Sending groups to device via Update Function:
+<load-configuration action="merge" format="xml">
+<configuration><groups><name>vsrx_2</name><interfaces><interface><name>ge-0/0/0</name><unit><name>0</name><family><inet><address><name>10.0.0.2/24</name></address></inet></family></unit></interface></interfaces></groups></configuration>
+</load-configuration>
+
+Sending groups to device via Update Function:
+<load-configuration action="merge" format="xml">
+<configuration><groups><name>vsrx_1</name><interfaces><interface><name>ge-0/0/0</name><description>Test description</description></interface></interfaces></groups></configuration>
+</load-configuration>
+
+
+Sending Apply-Groups to device
+<load-configuration action="merge" format="xml">
+<configuration><apply-groups>vsrx_1</apply-groups><apply-groups>vsrx_2</apply-groups></configuration>
+</load-configuration>
+Commiting from the SendCommit function
+Sending groups to device via Update Function:
+<load-configuration action="merge" format="xml">
+<configuration><groups><name>vsrx_1</name><interfaces><interface><name>ge-0/0/0</name><description>Test description</description></interface></interfaces></groups></configuration>
+</load-configuration>
+
+Sending groups to device via Update Function:
+<load-configuration action="merge" format="xml">
+<configuration><groups><name>vsrx_2</name><interfaces><interface><name>ge-0/0/0</name><unit><name>0</name><family><inet><address><name>10.0.0.2/24</name></address></inet></family></unit></interface></interfaces></groups></configuration>
+</load-configuration>
+
+
+Sending Apply-Groups to device
+<load-configuration action="merge" format="xml">
+<configuration><apply-groups>vsrx_1</apply-groups><apply-groups>vsrx_2</apply-groups></configuration>
+</load-configuration>
+Commiting from the SendCommit function
+
+Sending Apply-Groups to device
+<load-configuration action="merge" format="xml">
+<configuration></configuration>
+</load-configuration>
+Commiting from the SendCommit function

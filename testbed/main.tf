@@ -8,8 +8,8 @@ terraform {
 }
 
 provider "junos-vsrx" {
-    host = "66.129.234.201"
-    port = 37015
+    host = "66.129.234.200"
+    port = 48015
     username = "jcluser"
     password = "Juniper!1"
 }
