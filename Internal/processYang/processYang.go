@@ -132,9 +132,11 @@ func CreateYinFileAndXpath(jcfg cfg.Config) error {
 				// Process all the groups in yin file and store them.
 				create_group_nodes([]Node{n})
 
+				fmt.Println("1")
 				// Start processing of the data in the file.
 				start([]Node{n})
 
+				fmt.Println("2")
 				// create the xpath for the yin/yang file.
 				err = createFile(inputYinFile+"_xpath", fileType)
 				if err != nil {
