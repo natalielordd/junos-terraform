@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/xml"
 	"strings"
+    "encoding/json"
+    "fmt"
+    "os"
+    "os/exec"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -7933,11 +7937,48 @@ func (r *resource_Apply_Groups) Read(ctx context.Context, req resource.ReadReque
 func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	
 	var plan Groups_Model
+	var state Groups_Model
+
+	// Get plan and state
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	// Check for errors
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// Serialize to JSON for easy diff
+	planJSON, _ := json.MarshalIndent(plan, "", "  ")
+	stateJSON, _ := json.MarshalIndent(state, "", "  ")
+
+	// Create temp files for diff input
+	oldFile, _ := os.CreateTemp("", "state-*.json")
+	newFile, _ := os.CreateTemp("", "plan-*.json")
+	defer os.Remove(oldFile.Name())
+	defer os.Remove(newFile.Name())
+
+	oldFile.Write(stateJSON)
+	newFile.Write(planJSON)
+	oldFile.Close()
+	newFile.Close()
+
+	// Try diff -u
+	diffFile, _ := os.CreateTemp("", "plan-diff-*.patch")
+	cmd := exec.Command("diff", "-u", oldFile.Name(), newFile.Name())
+	out, err := cmd.CombinedOutput()
+	if err == nil || cmd.ProcessState.ExitCode() == 1 {
+        diffFile.Write([]byte("DIFF:\n"))
+		diffFile.Write(out)
+	} else {
+		// fallback: write old/new JSON if diff command unavailable
+		diffFile.Write([]byte("OLD STATE:\n"))
+		diffFile.Write(stateJSON)
+		diffFile.Write([]byte("\n\nNEW PLAN:\n"))
+		diffFile.Write(planJSON)
+	}
+	diffFile.Close()
+
+	resp.Diagnostics.AddWarning("Diff written", fmt.Sprintf("Diff file created at: %s", diffFile.Name()))
+
 	var config xml_Configuration
 	config.Groups.Name = plan.ResourceName.ValueStringPointer()
     
@@ -9057,7 +9098,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
     }
 	
-	err := r.client.SendTransaction(plan.ResourceName.ValueString(), config, false)
+	err = r.client.SendTransaction(plan.ResourceName.ValueString(), config, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())
 		return
