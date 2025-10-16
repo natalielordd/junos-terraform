@@ -9098,9 +9098,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
     // Create temp files for diff input
     oldFile, _ := os.CreateTemp("", "state-*.xml")
     newFile, _ := os.CreateTemp("", "plan-*.xml")
-    defer os.Remove(oldFile.Name())
-    defer os.Remove(newFile.Name())
-
+    
     oldFile.Write(stateXML)
     newFile.Write(planXML)
     oldFile.Close()
