@@ -9082,6 +9082,10 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         return
     }
 
+    // Create temp files for diff input
+    oldFile, _ := os.CreateTemp("", "state-*.xml")
+    newFile, _ := os.CreateTemp("", "plan-*.xml")
+
     // Marshal to pretty XML (with header) before writing
     var buf bytes.Buffer
     buf.WriteString(xml.Header)
@@ -9089,20 +9093,17 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
     buf.Write(planBody)
     planXML := buf.Bytes()
 
+    newFile.Write(planXML)
+    newFile.Close()
+
     buf.Reset()
     buf.WriteString(xml.Header)
     stateBody, _ := xml.MarshalIndent(state_config, "", "  ")
     buf.Write(stateBody)
     stateXML := buf.Bytes()
 
-    // Create temp files for diff input
-    oldFile, _ := os.CreateTemp("", "state-*.xml")
-    newFile, _ := os.CreateTemp("", "plan-*.xml")
-    
     oldFile.Write(stateXML)
-    newFile.Write(planXML)
     oldFile.Close()
-    newFile.Close()
 
     // Try diff -u
     diffFile, _ := os.CreateTemp("", "plan-diff-*.patch")
