@@ -6,7 +6,7 @@ import (
 	"strings"
     "fmt"
     "os"
-    "os/exec"
+    "path/filepath"
     "bytes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+    "github.com/pschlump/xml-diff/xmllib"
 )
 
 
@@ -9070,59 +9071,224 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         return config
     }
 
-    var plan_config xml_Configuration
-    plan_config = BuildXMLConfig(plan)
-    if plan_config.Groups.Name == nil || *plan_config.Groups.Name == "" {
-        return
+    // Helper 
+    max := func(a, b int) int {
+        if a > b {
+            return a
+        }
+        return b
     }
 
-    var state_config xml_Configuration
-    state_config = BuildXMLConfig(state)
-    if state_config.Groups.Name == nil || *state_config.Groups.Name == "" {
-        return
-    }
+    // Build configs
+	var plan_config xml_Configuration
+	plan_config = BuildXMLConfig(plan)
+	if plan_config.Groups.Name == nil || *plan_config.Groups.Name == "" {
+		return
+	}
+	var state_config xml_Configuration
+	state_config = BuildXMLConfig(state)
+	if state_config.Groups.Name == nil || *state_config.Groups.Name == "" {
+		return
+	}
 
-    // Create temp files for diff input
-    oldFile, _ := os.CreateTemp("", "state-*.xml")
-    newFile, _ := os.CreateTemp("", "plan-*.xml")
+	// Marshal to XML
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	planBody, _ := xml.MarshalIndent(plan_config, "", "  ")
+	buf.Write(planBody)
+	planXML := buf.Bytes()
 
-    // Marshal to pretty XML (with header) before writing
-    var buf bytes.Buffer
-    buf.WriteString(xml.Header)
-    planBody, _ := xml.MarshalIndent(plan_config, "", "  ")
-    buf.Write(planBody)
-    planXML := buf.Bytes()
+	buf.Reset()
+	buf.WriteString(xml.Header)
+	stateBody, _ := xml.MarshalIndent(state_config, "", "  ")
+	buf.Write(stateBody)
+	stateXML := buf.Bytes()
 
-    newFile.Write(planXML)
-    newFile.Close()
+	// Normalize both with xmllib so attributes/children order are comparable
+	norm := func(raw []byte) (string, error) {
+		root, err := xmllib.ReadXMLAsNode(bytes.NewReader(raw))
+		if err != nil {
+			return "", err
+		}
+		var out bytes.Buffer
+		enc := xmllib.NewEncoder(&out)
+		// Pretty output, encoder handles stable ordering
+		enc.IndentOption("  ")
+		if err := enc.Encode(root); err != nil {
+			return "", err
+		}
+		// Ensure consistent trailing newline splitting
+		s := strings.ReplaceAll(out.String(), "\r\n", "\n")
+		if !strings.HasSuffix(s, "\n") {
+			s += "\n"
+		}
+		return s, nil
+	}
 
-    buf.Reset()
-    buf.WriteString(xml.Header)
-    stateBody, _ := xml.MarshalIndent(state_config, "", "  ")
-    buf.Write(stateBody)
-    stateXML := buf.Bytes()
+	leftNorm, errL := norm(stateXML) // "left" = old/state
+	rightNorm, errR := norm(planXML) // "right" = new/plan
+	if errL != nil || errR != nil {
+		// Fallback: write normalized failure payloads for debugging
+		df, _ := os.CreateTemp("", "plan-diff-fallback-*.xml")
+		defer df.Close()
+		df.WriteString("<!-- normalization failed; writing raw -->\n")
+		df.Write(stateXML)
+		df.WriteString("\n\n")
+		df.Write(planXML)
+		resp.Diagnostics.AddWarning("XML diff (fallback)", fmt.Sprintf("Wrote raw XMLs to: %s", df.Name()))
+		return
+	}
 
-    oldFile.Write(stateXML)
-    oldFile.Close()
+	// Compute a simple line-based diff (LCS) over the normalized outputs
+	type opKind int
+	const (
+		equal opKind = iota
+		del
+		ins
+		rep
+	)
 
-    // Try diff -u
-    diffFile, _ := os.CreateTemp("", "plan-diff-*.patch")
-    cmd := exec.Command("diff", "-u", oldFile.Name(), newFile.Name())
-    out, err := cmd.CombinedOutput()
+	diffOps := func(a, b []string) [][3]interface{} {
+		// LCS DP
+		n, m := len(a), len(b)
+		dp := make([][]int, n+1)
+		for i := range dp {
+			dp[i] = make([]int, m+1)
+		}
+		for i := n - 1; i >= 0; i-- {
+			for j := m - 1; j >= 0; j-- {
+				if a[i] == b[j] {
+					dp[i][j] = dp[i+1][j+1] + 1
+				} else if dp[i+1][j] >= dp[i][j+1] {
+					dp[i][j] = dp[i+1][j]
+				} else {
+					dp[i][j] = dp[i][j+1]
+				}
+			}
+		}
+		// Reconstruct ops
+		var ops [][3]interface{} // (opKind, linesFromA, linesFromB)
+		i, j := 0, 0
+		for i < n && j < m {
+			if a[i] == b[j] {
+				ops = append(ops, [3]interface{}{equal, []string{a[i]}, []string{b[j]}})
+				i++
+				j++
+			} else if dp[i+1][j] >= dp[i][j+1] {
+				ops = append(ops, [3]interface{}{del, []string{a[i]}, []string(nil)})
+				i++
+			} else {
+				ops = append(ops, [3]interface{}{ins, []string(nil), []string{b[j]}})
+				j++
+			}
+		}
+		for i < n {
+			ops = append(ops, [3]interface{}{del, []string{a[i]}, []string(nil)})
+			i++
+		}
+		for j < m {
+			ops = append(ops, [3]interface{}{ins, []string(nil), []string{b[j]}})
+			j++
+		}
+		// Compact consecutive ops and coerce adjacent del+ins pairs into replace
+		compacted := make([][3]interface{}, 0, len(ops))
+		for _, o := range ops {
+			if len(compacted) == 0 {
+				compacted = append(compacted, o)
+				continue
+			}
+			last := &compacted[len(compacted)-1]
+			if last[0] == o[0] {
+				// same op: extend
+				if o[1] != nil {
+					last[1] = append(last[1].([]string), o[1].([]string)...)
+				}
+				if o[2] != nil {
+					last[2] = append(last[2].([]string), o[2].([]string)...)
+				}
+			} else if last[0] == del && o[0] == ins {
+				// turn into replace
+				last[0] = rep
+				last[2] = o[2]
+			} else {
+				compacted = append(compacted, o)
+			}
+		}
+		return compacted
+	}
 
-    if err == nil || (cmd.ProcessState != nil && cmd.ProcessState.ExitCode() == 1) {
-        diffFile.WriteString("DIFF:\n")
-        diffFile.Write(out)
-    } else {
-        diffFile.WriteString("OLD STATE:\n")
-        diffFile.Write(stateXML)
-        diffFile.WriteString("\n\nNEW PLAN:\n")
-        diffFile.Write(planXML)
-    }
+	leftLines := strings.Split(leftNorm, "\n")
+	rightLines := strings.Split(rightNorm, "\n")
+	// Drop the terminal empty split from trailing newline
+	if len(leftLines) > 0 && leftLines[len(leftLines)-1] == "" {
+		leftLines = leftLines[:len(leftLines)-1]
+	}
+	if len(rightLines) > 0 && rightLines[len(rightLines)-1] == "" {
+		rightLines = rightLines[:len(rightLines)-1]
+	}
+	ops := diffOps(leftLines, rightLines)
 
-    diffFile.Close()
+	// Emit an XML diff document
+	var out bytes.Buffer
+	type E struct {
+		XMLName xml.Name `xml:"equal,omitempty"`
+		Text    string   `xml:",cdata"`
+	}
+	type D struct {
+		XMLName xml.Name `xml:"delete,omitempty"`
+		Text    string   `xml:",cdata"`
+	}
+	type I struct {
+		XMLName xml.Name `xml:"insert,omitempty"`
+		Text    string   `xml:",cdata"`
+	}
+	type R struct {
+		XMLName xml.Name `xml:"replace,omitempty"`
+		From    string   `xml:"from,cdata"`
+		To      string   `xml:"to,cdata"`
+	}
+	out.WriteString(xml.Header)
+	out.WriteString(`<xmldiff version="1.0">` + "\n")
+	ln := 1
+	for _, o := range ops {
+		switch o[0].(opKind) {
+		case equal:
+			for _, s := range o[1].([]string) {
+				fmt.Fprintf(&out, `  <equal line="%d"><![CDATA[%s]]></equal>`+"\n", ln, s)
+				ln++
+			}
+		case del:
+			for _, s := range o[1].([]string) {
+				fmt.Fprintf(&out, `  <delete line="%d"><![CDATA[%s]]></delete>`+"\n", ln, s)
+				ln++
+			}
+		case ins:
+			for _, s := range o[2].([]string) {
+				// For inserts, line number refers to where it appears in the right document
+				fmt.Fprintf(&out, `  <insert line="%d"><![CDATA[%s]]></insert>`+"\n", ln, s)
+				ln++
+			}
+		case rep:
+			from := strings.Join(o[1].([]string), "\n")
+			to := strings.Join(o[2].([]string), "\n")
+			fmt.Fprintf(&out, "  <replace>\n    <from><![CDATA[%s]]></from>\n    <to><![CDATA[%s]]></to>\n  </replace>\n", from, to)
+			// best-effort line advance
+			ln += max(len(o[1].([]string)), len(o[2].([]string)))
+		}
+	}
+	out.WriteString("</xmldiff>\n")
 
-    resp.Diagnostics.AddWarning("Diff written", fmt.Sprintf("Diff file created at: %s", diffFile.Name()))
+	// Write to a temp file and surface path in diagnostics
+	diffFile, err := os.CreateTemp("", "plan-diff-*.xml")
+	if err == nil {
+		defer diffFile.Close()
+		diffFile.Write(out.Bytes())
+		resp.Diagnostics.AddWarning("XML Diff written", fmt.Sprintf("Diff file created at: %s", diffFile.Name()))
+	} else {
+		// last-resort: drop alongside workspace for easier discovery
+		_ = os.WriteFile(filepath.Join(os.TempDir(), "plan-diff.xml"), out.Bytes(), 0600)
+		resp.Diagnostics.AddWarning("XML Diff written", fmt.Sprintf("Diff file created at: %s", filepath.Join(os.TempDir(), "plan-diff.xml")))
+	}
 	
 	err = r.client.SendTransaction(plan.ResourceName.ValueString(), plan_config, false)
 	if err != nil {
