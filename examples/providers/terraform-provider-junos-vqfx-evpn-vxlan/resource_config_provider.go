@@ -9091,20 +9091,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	// Marshal to XML
-	var buf bytes.Buffer
-	buf.WriteString(xml.Header)
-	planBody, _ := xml.MarshalIndent(plan_config, "", "  ")
-	buf.Write(planBody)
-	planXML := buf.Bytes()
-
-	buf.Reset()
-	buf.WriteString(xml.Header)
-	stateBody, _ := xml.MarshalIndent(state_config, "", "  ")
-	buf.Write(stateBody)
-	stateXML := buf.Bytes()
-
-	// Normalize both with xmllib so attributes/children order are comparable
+    // Normalize both with xmllib so attributes/children order are comparable
 	norm := func(raw []byte) (string, error) {
 		root, err := xmllib.ReadXMLAsNode(bytes.NewReader(raw))
 		if err != nil {
@@ -9125,17 +9112,26 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 		return s, nil
 	}
 
-	leftNorm, errL := norm(stateXML) // "left" = old/state
-	rightNorm, errR := norm(planXML) // "right" = new/plan
+	// Marshal to XML
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	planBody, _ := xml.MarshalIndent(plan_config, "", "  ")
+	buf.Write(planBody)
+	planXML := buf.Bytes()
+
+    rightNorm, errR := norm(planXML) // "right" = new/plan
+
+	buf.Reset()
+
+	buf.WriteString(xml.Header)
+	stateBody, _ := xml.MarshalIndent(state_config, "", "  ")
+	buf.Write(stateBody)
+	stateXML := buf.Bytes()
+
+    leftNorm, errL := norm(stateXML) // "left" = old/state
+
 	if errL != nil || errR != nil {
-		// Fallback: write normalized failure payloads for debugging
-		df, _ := os.CreateTemp("", "plan-diff-fallback-*.xml")
-		defer df.Close()
-		df.WriteString("<!-- normalization failed; writing raw -->\n")
-		df.Write(stateXML)
-		df.WriteString("\n\n")
-		df.Write(planXML)
-		resp.Diagnostics.AddWarning("XML diff (fallback)", fmt.Sprintf("Wrote raw XMLs to: %s", df.Name()))
+		resp.Diagnostics.AddWarning("XML diff failed", "Failed to write normalized payloads")
 		return
 	}
 
