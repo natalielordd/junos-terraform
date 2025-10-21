@@ -9248,11 +9248,6 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 	ln := 1
 	for _, o := range ops {
 		switch o[0].(opKind) {
-		case equal:
-			for _, s := range o[1].([]string) {
-				fmt.Fprintf(&out, `  <equal line="%d"><![CDATA[%s]]></equal>`+"\n", ln, s)
-				ln++
-			}
 		case del:
 			for _, s := range o[1].([]string) {
 				fmt.Fprintf(&out, `  <delete line="%d"><![CDATA[%s]]></delete>`+"\n", ln, s)
