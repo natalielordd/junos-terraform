@@ -6,7 +6,7 @@ import (
 	"strings"
     "fmt"
     "os"
-    "path/filepath"
+    "io"
     "bytes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-    "github.com/pschlump/xml-diff/xmllib"
 )
 
 
@@ -7930,7 +7929,239 @@ func (r *resource_Apply_Groups) Read(ctx context.Context, req resource.ReadReque
     resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
+// XML tree nodes
+type Node struct {
+	Name     string           
+	Attrs    map[string]string 
+	Text     string           
+	Children []*Node           
+}
 
+// Get XML bytes from typed config 
+func marshalConfig(c xml_Configuration) ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("", "  ")
+	if err := enc.Encode(c); err != nil {
+		return nil, err
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// Build XML tree
+func BuildTree(xmlBytes []byte) (*Node, error) {
+	dec := xml.NewDecoder(bytes.NewReader(xmlBytes))
+	var stack []*Node
+	var root *Node
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			n := &Node{
+				Name:  t.Name.Local,
+				Attrs: map[string]string{},
+			}
+			for _, a := range t.Attr {
+				n.Attrs[a.Name.Local] = a.Value
+			}
+			if len(stack) == 0 {
+				root = n
+			} else {
+				parent := stack[len(stack)-1]
+				parent.Children = append(parent.Children, n)
+			}
+			stack = append(stack, n)
+
+		case xml.EndElement:
+			// pop
+			stack = stack[:len(stack)-1]
+
+		case xml.CharData:
+			// accumulate trimmed text on current node
+			if len(stack) == 0 {
+				continue
+			}
+			txt := strings.TrimSpace(string(t))
+			if txt != "" {
+				cur := stack[len(stack)-1]
+				// keep a single space between chunks if needed
+				if cur.Text == "" {
+					cur.Text = txt
+				} else {
+					cur.Text += " " + txt
+				}
+			}
+		}
+	}
+	return root, nil
+}
+
+// LeafMap builds a flat path -> value map with predicate enhancement.
+func LeafMap(root *Node) map[string]string {
+	out := make(map[string]string)
+	var stack []string
+
+	var walk func(n *Node)
+	walk = func(n *Node) {
+		seg := segmentWithPredicate(n)
+		stack = append(stack, seg)
+
+		// Decide if node should be treated as a leaf
+		nameVal, hasName := childNameValue(n)
+		otherKids := hasNonNameChildren(n)
+
+		switch {
+		// 1) Plain text leaf (e.g., <host-name>dc1</host-name>)
+		case !otherKids && n.Name != "name" && strings.TrimSpace(n.Text) != "":
+			path := strings.Join(stack, "/")
+			out[path] = strings.TrimSpace(n.Text)
+
+		// 2) Node whose only child is <name> (e.g., <address><name>10.0.0.1/24</name></address>)
+		//    Treat the element itself as the leaf, using the <name> value.
+		case !otherKids && hasName && n.Name != "name" && strings.TrimSpace(n.Text) == "":
+			path := strings.Join(stack, "/")
+			out[path] = nameVal
+
+		default:
+			// Recurse into children (skip <name> because it's used as a predicate)
+			for _, ch := range n.Children {
+				if ch.Name == "name" {
+					continue
+				}
+				walk(ch)
+			}
+		}
+
+		stack = stack[:len(stack)-1]
+	}
+
+	walk(root)
+	return out
+}
+
+// segmentWithPredicate returns elementName or elementName[name='X'] if it has a <name>X</name> child.
+func segmentWithPredicate(n *Node) string {
+	if v, ok := childNameValue(n); ok {
+		return fmt.Sprintf("%s[name='%s']", n.Name, v)
+	}
+	return n.Name
+}
+
+// childNameValue finds an immediate <name> child’s text.
+func childNameValue(n *Node) (string, bool) {
+	for _, ch := range n.Children {
+		if ch.Name == "name" {
+			val := strings.TrimSpace(ch.Text)
+			if val != "" {
+				return val, true
+			}
+		}
+	}
+	return "", false
+}
+
+// hasNonNameChildren reports whether n has any element children other than <name>.
+func hasNonNameChildren(n *Node) bool {
+	for _, ch := range n.Children {
+		if ch.Name != "" && ch.Name != "name" {
+			return true
+		}
+	}
+	return false
+}
+
+// PatchNode represents a minimal XML element with an operation
+type PatchNode struct {
+	XMLName xml.Name
+	AttrOp  string  `xml:"operation,attr,omitempty"`
+	Text    string  `xml:",chardata"`
+	Children []*PatchNode `xml:",any"`
+}
+
+// ensurePath builds nested XML elements for the given path segments
+func ensurePath(root *PatchNode, segs []string) *PatchNode {
+	cur := root
+	for _, s := range segs {
+		name := s
+		if i := strings.IndexByte(s, '['); i >= 0 {
+			name = s[:i]
+		}
+		var child *PatchNode
+		for _, c := range cur.Children {
+			if c.XMLName.Local == name {
+				child = c
+				break
+			}
+		}
+		if child == nil {
+			child = &PatchNode{XMLName: xml.Name{Local: name}}
+			cur.Children = append(cur.Children, child)
+		}
+		cur = child
+	}
+	return cur
+}
+
+// writeDiffPatch writes the given changes map to a temp XML file.
+func writeDiffPatch(changes map[string]struct {
+	op   string
+	oldV string
+	newV string
+}) (string, error) {
+	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
+
+	for path, change := range changes {
+		segs := strings.Split(path, "/")[1:] // drop leading "configuration"
+		parent := ensurePath(root, segs[:len(segs)-1])
+		leafName := segs[len(segs)-1]
+
+		switch change.op {
+		case "delete":
+			node := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "delete"}
+			parent.Children = append(parent.Children, node)
+
+		case "create":
+			node := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "create", Text: change.newV}
+			parent.Children = append(parent.Children, node)
+
+		case "replace":
+			delNode := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "delete"}
+			addNode := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "create", Text: change.newV}
+			parent.Children = append(parent.Children, delNode, addNode)
+		}
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("", "  ")
+	if err := enc.Encode(root); err != nil {
+		return "", err
+	}
+	enc.Flush()
+
+	// Write to a temp file
+	tmp, err := os.CreateTemp("", "xmldiff-*.xml")
+	if err != nil {
+		return "", err
+	}
+	defer tmp.Close()
+
+	tmp.Write(buf.Bytes())
+	return tmp.Name(), nil
+}
 
 
 
@@ -9071,14 +9302,6 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         return config
     }
 
-    // Helper 
-    max := func(a, b int) int {
-        if a > b {
-            return a
-        }
-        return b
-    }
-
     // Build configs
 	var plan_config xml_Configuration
 	plan_config = BuildXMLConfig(plan)
@@ -9091,196 +9314,48 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-    // Normalize both with xmllib so attributes/children order are comparable
-	norm := func(raw []byte) (string, error) {
-		root, err := xmllib.ReadXMLAsNode(bytes.NewReader(raw))
-		if err != nil {
-			return "", err
-		}
-		var out bytes.Buffer
-		enc := xmllib.NewEncoder(&out)
-		// Pretty output, encoder handles stable ordering
-		enc.IndentOption("  ")
-		if err := enc.Encode(root); err != nil {
-			return "", err
-		}
-		// Ensure consistent trailing newline splitting
-		s := strings.ReplaceAll(out.String(), "\r\n", "\n")
-		if !strings.HasSuffix(s, "\n") {
-			s += "\n"
-		}
-		return s, nil
-	}
+    // Marshal to XML bytes
+    planXML, err := marshalConfig(plan_config)
+    stateXML, err := marshalConfig(state_config)
 
-	// Marshal to XML
-	var buf bytes.Buffer
-	buf.WriteString(xml.Header)
-	planBody, _ := xml.MarshalIndent(plan_config, "", "  ")
-	buf.Write(planBody)
-	planXML := buf.Bytes()
+    // Build trees
+    planTree, err := BuildTree(planXML)
+    stateTree, err := BuildTree(stateXML)
 
-    rightNorm, errR := norm(planXML) // "right" = new/plan
+    // Create leaf maps
+    planMap := LeafMap(planTree)
+    stateMap := LeafMap(stateTree)
 
-	buf.Reset()
+    // Diff struct (create/delete/replace):
+    changes := make(map[string]struct {
+        op   string // "create" | "delete" | "replace"
+        oldV string
+        newV string
+    })
 
-	buf.WriteString(xml.Header)
-	stateBody, _ := xml.MarshalIndent(state_config, "", "  ")
-	buf.Write(stateBody)
-	stateXML := buf.Bytes()
+    // Deletions & candidates for replace
+    for k, lv := range stateMap {
+        if rv, ok := planMap[k]; !ok {
+            changes[k] = struct{ op, oldV, newV string }{"delete", lv, ""}
+        } else if rv != lv {
+            changes[k] = struct{ op, oldV, newV string }{"replace", lv, rv}
+        }
+    }
+    // Creations (and completes replace)
+    for k, rv := range planMap {
+        if _, ok := stateMap[k]; !ok {
+            changes[k] = struct{ op, oldV, newV string }{"create", "", rv}
+        }
+    }
 
-    leftNorm, errL := norm(stateXML) // "left" = old/state
-
-	if errL != nil || errR != nil {
-		resp.Diagnostics.AddWarning("XML diff failed", "Failed to write normalized payloads")
-		return
-	}
-
-	// Compute a simple line-based diff (LCS) over the normalized outputs
-	type opKind int
-	const (
-		equal opKind = iota
-		del
-		ins
-		rep
-	)
-
-	diffOps := func(a, b []string) [][3]interface{} {
-		// LCS DP
-		n, m := len(a), len(b)
-		dp := make([][]int, n+1)
-		for i := range dp {
-			dp[i] = make([]int, m+1)
-		}
-		for i := n - 1; i >= 0; i-- {
-			for j := m - 1; j >= 0; j-- {
-				if a[i] == b[j] {
-					dp[i][j] = dp[i+1][j+1] + 1
-				} else if dp[i+1][j] >= dp[i][j+1] {
-					dp[i][j] = dp[i+1][j]
-				} else {
-					dp[i][j] = dp[i][j+1]
-				}
-			}
-		}
-		// Reconstruct ops
-		var ops [][3]interface{} // (opKind, linesFromA, linesFromB)
-		i, j := 0, 0
-		for i < n && j < m {
-			if a[i] == b[j] {
-				ops = append(ops, [3]interface{}{equal, []string{a[i]}, []string{b[j]}})
-				i++
-				j++
-			} else if dp[i+1][j] >= dp[i][j+1] {
-				ops = append(ops, [3]interface{}{del, []string{a[i]}, []string(nil)})
-				i++
-			} else {
-				ops = append(ops, [3]interface{}{ins, []string(nil), []string{b[j]}})
-				j++
-			}
-		}
-		for i < n {
-			ops = append(ops, [3]interface{}{del, []string{a[i]}, []string(nil)})
-			i++
-		}
-		for j < m {
-			ops = append(ops, [3]interface{}{ins, []string(nil), []string{b[j]}})
-			j++
-		}
-		// Compact consecutive ops and coerce adjacent del+ins pairs into replace
-		compacted := make([][3]interface{}, 0, len(ops))
-		for _, o := range ops {
-			if len(compacted) == 0 {
-				compacted = append(compacted, o)
-				continue
-			}
-			last := &compacted[len(compacted)-1]
-			if last[0] == o[0] {
-				// same op: extend
-				if o[1] != nil {
-					last[1] = append(last[1].([]string), o[1].([]string)...)
-				}
-				if o[2] != nil {
-					last[2] = append(last[2].([]string), o[2].([]string)...)
-				}
-			} else if last[0] == del && o[0] == ins {
-				// turn into replace
-				last[0] = rep
-				last[2] = o[2]
-			} else {
-				compacted = append(compacted, o)
-			}
-		}
-		return compacted
-	}
-
-	leftLines := strings.Split(leftNorm, "\n")
-	rightLines := strings.Split(rightNorm, "\n")
-	// Drop the terminal empty split from trailing newline
-	if len(leftLines) > 0 && leftLines[len(leftLines)-1] == "" {
-		leftLines = leftLines[:len(leftLines)-1]
-	}
-	if len(rightLines) > 0 && rightLines[len(rightLines)-1] == "" {
-		rightLines = rightLines[:len(rightLines)-1]
-	}
-	ops := diffOps(leftLines, rightLines)
-
-	// Emit an XML diff document
-	var out bytes.Buffer
-	type E struct {
-		XMLName xml.Name `xml:"equal,omitempty"`
-		Text    string   `xml:",cdata"`
-	}
-	type D struct {
-		XMLName xml.Name `xml:"delete,omitempty"`
-		Text    string   `xml:",cdata"`
-	}
-	type I struct {
-		XMLName xml.Name `xml:"insert,omitempty"`
-		Text    string   `xml:",cdata"`
-	}
-	type R struct {
-		XMLName xml.Name `xml:"replace,omitempty"`
-		From    string   `xml:"from,cdata"`
-		To      string   `xml:"to,cdata"`
-	}
-	out.WriteString(xml.Header)
-	out.WriteString(`<xmldiff version="1.0">` + "\n")
-	ln := 1
-	for _, o := range ops {
-		switch o[0].(opKind) {
-		case del:
-			for _, s := range o[1].([]string) {
-				fmt.Fprintf(&out, `  <delete line="%d"><![CDATA[%s]]></delete>`+"\n", ln, s)
-				ln++
-			}
-		case ins:
-			for _, s := range o[2].([]string) {
-				// For inserts, line number refers to where it appears in the right document
-				fmt.Fprintf(&out, `  <insert line="%d"><![CDATA[%s]]></insert>`+"\n", ln, s)
-				ln++
-			}
-		case rep:
-			from := strings.Join(o[1].([]string), "\n")
-			to := strings.Join(o[2].([]string), "\n")
-			fmt.Fprintf(&out, "  <replace>\n    <from><![CDATA[%s]]></from>\n    <to><![CDATA[%s]]></to>\n  </replace>\n", from, to)
-			// best-effort line advance
-			ln += max(len(o[1].([]string)), len(o[2].([]string)))
-		}
-	}
-	out.WriteString("</xmldiff>\n")
-
-	// Write to a temp file and surface path in diagnostics
-	diffFile, err := os.CreateTemp("", "plan-diff-*.xml")
-	if err == nil {
-		defer diffFile.Close()
-		diffFile.Write(out.Bytes())
-		resp.Diagnostics.AddWarning("XML Diff written", fmt.Sprintf("Diff file created at: %s", diffFile.Name()))
-	} else {
-		// last-resort: drop alongside workspace for easier discovery
-		_ = os.WriteFile(filepath.Join(os.TempDir(), "plan-diff.xml"), out.Bytes(), 0600)
-		resp.Diagnostics.AddWarning("XML Diff written", fmt.Sprintf("Diff file created at: %s", filepath.Join(os.TempDir(), "plan-diff.xml")))
-	}
-	
+    // Write changes to file
+    filename, err := writeDiffPatch(changes)
+    if err != nil {
+        fmt.Println("Error writing diff:", err)
+        return
+    }
+    fmt.Println("Diff patch written to:", filename)
+        
 	err = r.client.SendTransaction(plan.ResourceName.ValueString(), plan_config, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())
