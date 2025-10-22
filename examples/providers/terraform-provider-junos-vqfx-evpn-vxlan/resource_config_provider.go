@@ -9351,10 +9351,10 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
     // Write changes to file
     filename, err := writeDiffPatch(changes)
     if err != nil {
-        fmt.Println("Error writing diff:", err)
-        return
+        resp.Diagnostics.AddError("Failed while writing change file", err.Error())
+		return
     }
-    fmt.Println("Diff patch written to:", filename)
+    resp.Diagnostics.AddWarning("Diff patch written to:", filename)
         
 	err = r.client.SendTransaction(plan.ResourceName.ValueString(), plan_config, false)
 	if err != nil {
