@@ -8167,12 +8167,14 @@ func writeDiffPatch(changes map[string]struct {
 
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
+    buf.WriteString("<config>\n") 
 	enc := xml.NewEncoder(&buf)
 	enc.Indent("", "  ")
 	if err := enc.Encode(root); err != nil {
 		return "", err
 	}
 	enc.Flush()
+    buf.WriteString("\n</config>")
 
 	// Write to a temp file
 	tmp, err := os.CreateTemp("", "xmldiff-*.xml")
