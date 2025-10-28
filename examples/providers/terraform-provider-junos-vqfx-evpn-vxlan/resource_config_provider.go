@@ -8180,7 +8180,7 @@ func writeDiffPatch(changes map[string]struct {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
 	enc := xml.NewEncoder(&buf)
-	enc.Indent("  ", "  ")
+	enc.Indent("", "  ")
 	if err := enc.Encode(finalDiff); err != nil {
 		return "", err
 	}
