@@ -7935,6 +7935,7 @@ type Node struct {
 	Attrs    map[string]string 
 	Text     string           
 	Children []*Node           
+    Parent   *Node 
 }
 
 // Get XML bytes from typed config 
@@ -8011,52 +8012,76 @@ func BuildTree(xmlBytes []byte) (*Node, error) {
 // LeafMap builds a flat path -> value map with predicate enhancement.
 func LeafMap(root *Node) map[string]string {
 	out := make(map[string]string)
-	var stack []string
 
-	var walk func(n *Node)
-	walk = func(n *Node) {
-		seg := segmentWithPredicate(n)
+	var walk func(n *Node, stack []string)
+	walk = func(n *Node, stack []string) {
+		// Build a stable/unique path segment for this node
+		seg := segmentWithSiblingIndex(n)
 		stack = append(stack, seg)
 
-		// Decide if node should be treated as a leaf
 		nameVal, hasName := childNameValue(n)
 		otherKids := hasNonNameChildren(n)
+		textVal := strings.TrimSpace(n.Text)
 
 		switch {
-		// 1) Plain text leaf (e.g., <host-name>dc1</host-name>)
-		case !otherKids && n.Name != "name" && strings.TrimSpace(n.Text) != "":
+		// 1) Plain scalar leaf like <port>32767</port>
+		case !otherKids && n.Name != "name" && textVal != "":
 			path := strings.Join(stack, "/")
-			out[path] = strings.TrimSpace(n.Text)
+			out[path] = textVal
 
-		// 2) Node whose only child is <name> (e.g., <address><name>10.0.0.1/24</name></address>)
-		//    Treat the element itself as the leaf, using the <name> value.
-		case !otherKids && hasName && n.Name != "name" && strings.TrimSpace(n.Text) == "":
+		// 2) Node whose only real payload is <name>child</name>
+		//    e.g. <address><name>10.0.0.1/24</name></address>
+		//         or list entries like <user><name>jcluser</name>...</user>
+		case !otherKids && hasName && n.Name != "name" && textVal == "":
 			path := strings.Join(stack, "/")
 			out[path] = nameVal
 
 		default:
-			// Recurse into children (skip <name> because it's used as a predicate)
+			// Keep walking into children, but skip <name> because we already
+			// used it either as a predicate or as the leaf value.
 			for _, ch := range n.Children {
 				if ch.Name == "name" {
 					continue
 				}
-				walk(ch)
+				walk(ch, stack)
 			}
 		}
-
-		stack = stack[:len(stack)-1]
 	}
 
-	walk(root)
+	walk(root, nil)
 	return out
 }
 
-// segmentWithPredicate returns elementName or elementName[name='X'] if it has a <name>X</name> child.
-func segmentWithPredicate(n *Node) string {
-	if v, ok := childNameValue(n); ok {
+
+func segmentWithSiblingIndex(n *Node) string {
+	// Reuse your existing behavior for named/list entries.
+	if v, ok := childNameValue(n); ok && v != "" {
 		return fmt.Sprintf("%s[name='%s']", n.Name, v)
 	}
-	return n.Name
+
+	// No <name> child. If there's no parent, just return the tag.
+	if n.Parent == nil {
+		return n.Name
+	}
+
+	// Walk older siblings to figure out which occurrence this is.
+	idx := 0
+	for _, sib := range n.Parent.Children {
+		if sib == n {
+			break
+		}
+		if sib.Name == n.Name {
+			if _, has := childNameValue(sib); !has {
+				idx++
+			}
+		}
+	}
+
+	if idx == 0 {
+		return n.Name
+	}
+
+	return fmt.Sprintf("%s#%d", n.Name, idx)
 }
 
 // childNameValue finds an immediate <name> child’s text.
