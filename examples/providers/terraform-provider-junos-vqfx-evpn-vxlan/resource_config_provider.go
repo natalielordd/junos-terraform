@@ -7986,18 +7986,18 @@ func BuildTree(xmlBytes []byte) (*Node, error) {
 			stack = append(stack, n)
 
 		case xml.EndElement:
-			// pop
+			// Pop
 			stack = stack[:len(stack)-1]
 
 		case xml.CharData:
-			// accumulate trimmed text on current node
+			// Accumulate trimmed text on current node
 			if len(stack) == 0 {
 				continue
 			}
 			txt := strings.TrimSpace(string(t))
 			if txt != "" {
 				cur := stack[len(stack)-1]
-				// keep a single space between chunks if needed
+				// Keep a single space between chunks if needed
 				if cur.Text == "" {
 					cur.Text = txt
 				} else {
@@ -8009,7 +8009,7 @@ func BuildTree(xmlBytes []byte) (*Node, error) {
 	return root, nil
 }
 
-// LeafMap builds a flat path -> value map with predicate enhancement.
+// LeafMap builds a flat path -> value map
 func LeafMap(root *Node) map[string]string {
 	out := make(map[string]string)
 
@@ -8024,21 +8024,18 @@ func LeafMap(root *Node) map[string]string {
 		textVal := strings.TrimSpace(n.Text)
 
 		switch {
-		// 1) Plain scalar leaf like <port>32767</port>
+		// Plain scalar leaf
 		case !otherKids && n.Name != "name" && textVal != "":
 			path := strings.Join(stack, "/")
 			out[path] = textVal
 
-		// 2) Node whose only real payload is <name>child</name>
-		//    e.g. <address><name>10.0.0.1/24</name></address>
-		//         or list entries like <user><name>jcluser</name>...</user>
+		//  Node whose only real payload is <name>child</name>
 		case !otherKids && hasName && n.Name != "name" && textVal == "":
 			path := strings.Join(stack, "/")
 			out[path] = nameVal
 
 		default:
-			// Keep walking into children, but skip <name> because we already
-			// used it either as a predicate or as the leaf value.
+			// Keep walking into children, but skip <name> because it was already used as a predicate or as the leaf value.
 			for _, ch := range n.Children {
 				if ch.Name == "name" {
 					continue
@@ -8054,7 +8051,7 @@ func LeafMap(root *Node) map[string]string {
 
 
 func segmentWithSiblingIndex(n *Node) string {
-	// Reuse your existing behavior for named/list entries.
+	// <name> child
 	if v, ok := childNameValue(n); ok && v != "" {
 		return fmt.Sprintf("%s[name='%s']", n.Name, v)
 	}
