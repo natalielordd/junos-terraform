@@ -8141,7 +8141,7 @@ func writeDiffPatch(changes map[string]struct {
 	op   string
 	oldV string
 	newV string
-}) (string, error) {
+}, group string) (string, error) {
 	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
 
 	for path, change := range changes {
@@ -8165,16 +8165,26 @@ func writeDiffPatch(changes map[string]struct {
 		}
 	}
 
+    insertGroupName(root, group)
+
+    type outer struct {
+		XMLName        xml.Name   `xml:"config"`
+		Configuration  *PatchNode `xml:"configuration"`
+	}
+
+	finalDiff := outer{
+		XMLName:       xml.Name{Local: "config"},
+		Configuration: root,
+	}
+
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
-    buf.WriteString("<config>\n") 
 	enc := xml.NewEncoder(&buf)
-	enc.Indent("", "  ")
-	if err := enc.Encode(root); err != nil {
+	enc.Indent("  ", "  ")
+	if err := enc.Encode(finalDiff); err != nil {
 		return "", err
 	}
 	enc.Flush()
-    buf.WriteString("\n</config>")
 
 	// Write to a temp file
 	tmp, err := os.CreateTemp("", "xmldiff-*.xml")
@@ -8187,7 +8197,22 @@ func writeDiffPatch(changes map[string]struct {
 	return tmp.Name(), nil
 }
 
+// Finds <groups> nodes under the given PatchNode and injects a <name>...</name> node as the first child.
+func insertGroupName(n *PatchNode, group string) {
+	if n.XMLName.Local == "groups" {
+		// Make the <name> node
+		nameNode := &PatchNode{
+			XMLName: xml.Name{Local: "name"},
+			Text:    group,
+		}
+		// Prepend it to n.Children
+		n.Children = append([]*PatchNode{nameNode}, n.Children...)
+	}
 
+	for _, c := range n.Children {
+		insertGroupName(c, group)
+	}
+}
 
 // Update implements resource.Resource.
 func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -9372,8 +9397,10 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
     }
 
+    name := plan.ResourceName.ValueString()
+
     // Write changes to file
-    filename, err := writeDiffPatch(changes)
+    filename, err := writeDiffPatch(changes, name)
     if err != nil {
         resp.Diagnostics.AddError("Failed while writing change file", err.Error())
 		return
