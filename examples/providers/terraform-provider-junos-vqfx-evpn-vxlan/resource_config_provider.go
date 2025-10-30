@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"strings"
     "fmt"
-    "os"
     "io"
     "bytes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -8136,12 +8135,12 @@ func ensurePath(root *PatchNode, segs []string) *PatchNode {
 	return cur
 }
 
-// writeDiffPatch writes the given changes map to a temp XML file.
-func writeDiffPatch(changes map[string]struct {
+// createDiffPatch creates a string of the given changes map
+func createDiffPatch(changes map[string]struct {
 	op   string
 	oldV string
 	newV string
-}, group string) (string, string, error) {
+}, group string) (string, error) {
 	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
 
 	for path, change := range changes {
@@ -8172,21 +8171,13 @@ func writeDiffPatch(changes map[string]struct {
 	enc := xml.NewEncoder(&buf)
 	enc.Indent("", "  ")
 	if err := enc.Encode(root); err != nil {
-		return "", "", err
+		return "", err
 	}
 	enc.Flush()
 
     diff := buf.String()
 
-	// Write to a temp file
-	tmp, err := os.CreateTemp("", "xmldiff-*.xml")
-	if err != nil {
-		return "", "", err
-	}
-	defer tmp.Close()
-
-	tmp.Write(buf.Bytes())
-	return tmp.Name(), diff, nil
+	return diff, nil
 }
 
 // Finds <groups> nodes under the given PatchNode and injects a <name>...</name> node as the first child.
@@ -9392,13 +9383,8 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
     name := plan.ResourceName.ValueString()
 
     // Write changes to file
-    filename, diff, err := writeDiffPatch(changes, name)
-    if err != nil {
-        resp.Diagnostics.AddError("Failed while writing change file", err.Error())
-		return
-    }
-    resp.Diagnostics.AddWarning("Diff patch written to:", filename)
-        
+    diff, err := createDiffPatch(changes, name)
+
 	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())

@@ -267,7 +267,7 @@ func (g *GoNCClient) SendUpdate(id string, diff string, commit bool) error {
 	defer g.Lock.Unlock()
 
 	if err := g.Driver.Dial(); err != nil {
-		return "", err
+		return err
 	}
 
 	// Extract the string between <name> tags
