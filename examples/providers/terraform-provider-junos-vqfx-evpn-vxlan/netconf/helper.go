@@ -263,6 +263,13 @@ func sortApplyGroupsList() {
 }
 
 func (g *GoNCClient) SendUpdate(id string, diff string, commit bool) error {
+	g.Lock.Lock()
+	defer g.Lock.Unlock()
+
+	if err := g.Driver.Dial(); err != nil {
+		return "", err
+	}
+
 	// Extract the string between <name> tags
 	nameStart := strings.Index(diff, "<name>")
 	nameEnd := strings.Index(diff, "</name>")
