@@ -858,9 +858,8 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 	
-	BuildXMLConfig := func(plan Groups_Model) xml_Configuration{
+	BuildXMLConfig := func(plan Groups_Model)(config xml_Configuration){
 
-        var config xml_Configuration
         config.Groups.Name = plan.ResourceName.ValueStringPointer()
     
 		{% for parent in parent_list %}
@@ -951,7 +950,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
     diff, err := createDiffPatch(changes, name)
 
-	err := r.client.SendTransaction(plan.ResourceName.ValueString(), diff, false)
+	err = r.client.SendTransaction(plan.ResourceName.ValueString(), diff, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())
 		return
