@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"strings"
-    "fmt"
+	"fmt"
     "io"
     "bytes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -7928,6 +7928,10 @@ func (r *resource_Apply_Groups) Read(ctx context.Context, req resource.ReadReque
     resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
+
+
+
+
 // XML tree nodes
 type Node struct {
 	Name     string           
@@ -8080,7 +8084,7 @@ func segmentWithSiblingIndex(n *Node) string {
 	return fmt.Sprintf("%s#%d", n.Name, idx)
 }
 
-// childNameValue finds an immediate <name> child’s text.
+// childNameValue finds an immediate <name> childs text.
 func childNameValue(n *Node) (string, bool) {
 	for _, ch := range n.Children {
 		if ch.Name == "name" {
@@ -8209,1132 +8213,1131 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	
+	BuildXMLConfig := func(plan Groups_Model)(config xml_Configuration){
 
-    BuildXMLConfig := func(plan Groups_Model) xml_Configuration{
-
-        var config xml_Configuration
         config.Groups.Name = plan.ResourceName.ValueStringPointer()
+    
+		
+		var var_chassis []Chassis_Model
+		if plan.Chassis.IsNull() {
+			var_chassis = []Chassis_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Chassis.ElementsAs(ctx, &var_chassis, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Chassis = make([]xml_Chassis, len(var_chassis))
+		
+		for i_chassis, v_chassis := range var_chassis {
+			var var_chassis_aggregated_devices []Chassis_Aggregated_devices_Model
+			resp.Diagnostics.Append(v_chassis.Aggregated_devices.ElementsAs(ctx, &var_chassis_aggregated_devices, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Chassis[i_chassis].Aggregated_devices = make([]xml_Chassis_Aggregated_devices, len(var_chassis_aggregated_devices))
         
-        
-        var var_chassis []Chassis_Model
-        if plan.Chassis.IsNull() {
-            var_chassis = []Chassis_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Chassis.ElementsAs(ctx, &var_chassis, false)...)
+		for i_chassis_aggregated_devices, v_chassis_aggregated_devices := range var_chassis_aggregated_devices {
+            var var_chassis_aggregated_devices_ethernet []Chassis_Aggregated_devices_Ethernet_Model
+            resp.Diagnostics.Append(v_chassis_aggregated_devices.Ethernet.ElementsAs(ctx, &var_chassis_aggregated_devices_ethernet, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
+	    config.Groups.Chassis[i_chassis].Aggregated_devices[i_chassis_aggregated_devices].Ethernet = make([]xml_Chassis_Aggregated_devices_Ethernet, len(var_chassis_aggregated_devices_ethernet))
+        
+		for i_chassis_aggregated_devices_ethernet, v_chassis_aggregated_devices_ethernet := range var_chassis_aggregated_devices_ethernet {
+            config.Groups.Chassis[i_chassis].Aggregated_devices[i_chassis_aggregated_devices].Ethernet[i_chassis_aggregated_devices_ethernet].Device_count = v_chassis_aggregated_devices_ethernet.Device_count.ValueStringPointer()
         }
-        config.Groups.Chassis = make([]xml_Chassis, len(var_chassis))
-        
-        for i_chassis, v_chassis := range var_chassis {
-            var var_chassis_aggregated_devices []Chassis_Aggregated_devices_Model
-            resp.Diagnostics.Append(v_chassis.Aggregated_devices.ElementsAs(ctx, &var_chassis_aggregated_devices, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Chassis[i_chassis].Aggregated_devices = make([]xml_Chassis_Aggregated_devices, len(var_chassis_aggregated_devices))
-            
-            for i_chassis_aggregated_devices, v_chassis_aggregated_devices := range var_chassis_aggregated_devices {
-                var var_chassis_aggregated_devices_ethernet []Chassis_Aggregated_devices_Ethernet_Model
-                resp.Diagnostics.Append(v_chassis_aggregated_devices.Ethernet.ElementsAs(ctx, &var_chassis_aggregated_devices_ethernet, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Chassis[i_chassis].Aggregated_devices[i_chassis_aggregated_devices].Ethernet = make([]xml_Chassis_Aggregated_devices_Ethernet, len(var_chassis_aggregated_devices_ethernet))
-            
-            for i_chassis_aggregated_devices_ethernet, v_chassis_aggregated_devices_ethernet := range var_chassis_aggregated_devices_ethernet {
-                config.Groups.Chassis[i_chassis].Aggregated_devices[i_chassis_aggregated_devices].Ethernet[i_chassis_aggregated_devices_ethernet].Device_count = v_chassis_aggregated_devices_ethernet.Device_count.ValueStringPointer()
-            }
-            }
         }
+		}
+		
+		var var_forwarding_options []Forwarding_options_Model
+		if plan.Forwarding_options.IsNull() {
+			var_forwarding_options = []Forwarding_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Forwarding_options.ElementsAs(ctx, &var_forwarding_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Forwarding_options = make([]xml_Forwarding_options, len(var_forwarding_options))
+		
+		for i_forwarding_options, v_forwarding_options := range var_forwarding_options {
+			var var_forwarding_options_storm_control_profiles []Forwarding_options_Storm_control_profiles_Model
+			resp.Diagnostics.Append(v_forwarding_options.Storm_control_profiles.ElementsAs(ctx, &var_forwarding_options_storm_control_profiles, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles = make([]xml_Forwarding_options_Storm_control_profiles, len(var_forwarding_options_storm_control_profiles))
         
-        var var_forwarding_options []Forwarding_options_Model
-        if plan.Forwarding_options.IsNull() {
-            var_forwarding_options = []Forwarding_options_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Forwarding_options.ElementsAs(ctx, &var_forwarding_options, false)...)
+		for i_forwarding_options_storm_control_profiles, v_forwarding_options_storm_control_profiles := range var_forwarding_options_storm_control_profiles {
+            config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles[i_forwarding_options_storm_control_profiles].Name = v_forwarding_options_storm_control_profiles.Name.ValueStringPointer()
+            var var_forwarding_options_storm_control_profiles_all []Forwarding_options_Storm_control_profiles_All_Model
+            resp.Diagnostics.Append(v_forwarding_options_storm_control_profiles.All.ElementsAs(ctx, &var_forwarding_options_storm_control_profiles_all, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Forwarding_options = make([]xml_Forwarding_options, len(var_forwarding_options))
+	    config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles[i_forwarding_options_storm_control_profiles].All = make([]xml_Forwarding_options_Storm_control_profiles_All, len(var_forwarding_options_storm_control_profiles_all))
         
-        for i_forwarding_options, v_forwarding_options := range var_forwarding_options {
-            var var_forwarding_options_storm_control_profiles []Forwarding_options_Storm_control_profiles_Model
-            resp.Diagnostics.Append(v_forwarding_options.Storm_control_profiles.ElementsAs(ctx, &var_forwarding_options_storm_control_profiles, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles = make([]xml_Forwarding_options_Storm_control_profiles, len(var_forwarding_options_storm_control_profiles))
-            
-            for i_forwarding_options_storm_control_profiles, v_forwarding_options_storm_control_profiles := range var_forwarding_options_storm_control_profiles {
-                config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles[i_forwarding_options_storm_control_profiles].Name = v_forwarding_options_storm_control_profiles.Name.ValueStringPointer()
-                var var_forwarding_options_storm_control_profiles_all []Forwarding_options_Storm_control_profiles_All_Model
-                resp.Diagnostics.Append(v_forwarding_options_storm_control_profiles.All.ElementsAs(ctx, &var_forwarding_options_storm_control_profiles_all, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles[i_forwarding_options_storm_control_profiles].All = make([]xml_Forwarding_options_Storm_control_profiles_All, len(var_forwarding_options_storm_control_profiles_all))
-            
-            }
         }
+		}
+		
+		var var_interfaces []Interfaces_Model
+		if plan.Interfaces.IsNull() {
+			var_interfaces = []Interfaces_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Interfaces.ElementsAs(ctx, &var_interfaces, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Interfaces = make([]xml_Interfaces, len(var_interfaces))
+		
+		for i_interfaces, v_interfaces := range var_interfaces {
+			var var_interfaces_interface []Interfaces_Interface_Model
+			resp.Diagnostics.Append(v_interfaces.Interface.ElementsAs(ctx, &var_interfaces_interface, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Interfaces[i_interfaces].Interface = make([]xml_Interfaces_Interface, len(var_interfaces_interface))
         
-        var var_interfaces []Interfaces_Model
-        if plan.Interfaces.IsNull() {
-            var_interfaces = []Interfaces_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Interfaces.ElementsAs(ctx, &var_interfaces, false)...)
+		for i_interfaces_interface, v_interfaces_interface := range var_interfaces_interface {
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Name = v_interfaces_interface.Name.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Description = v_interfaces_interface.Description.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Vlan_tagging = v_interfaces_interface.Vlan_tagging.ValueStringPointer()
+            var var_interfaces_interface_esi []Interfaces_Interface_Esi_Model
+            resp.Diagnostics.Append(v_interfaces_interface.Esi.ElementsAs(ctx, &var_interfaces_interface_esi, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Interfaces = make([]xml_Interfaces, len(var_interfaces))
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Esi = make([]xml_Interfaces_Interface_Esi, len(var_interfaces_interface_esi))
         
-        for i_interfaces, v_interfaces := range var_interfaces {
-            var var_interfaces_interface []Interfaces_Interface_Model
-            resp.Diagnostics.Append(v_interfaces.Interface.ElementsAs(ctx, &var_interfaces_interface, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Interfaces[i_interfaces].Interface = make([]xml_Interfaces_Interface, len(var_interfaces_interface))
-            
-            for i_interfaces_interface, v_interfaces_interface := range var_interfaces_interface {
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Name = v_interfaces_interface.Name.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Description = v_interfaces_interface.Description.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Vlan_tagging = v_interfaces_interface.Vlan_tagging.ValueStringPointer()
-                var var_interfaces_interface_esi []Interfaces_Interface_Esi_Model
-                resp.Diagnostics.Append(v_interfaces_interface.Esi.ElementsAs(ctx, &var_interfaces_interface_esi, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Esi = make([]xml_Interfaces_Interface_Esi, len(var_interfaces_interface_esi))
-            
-            for i_interfaces_interface_esi, v_interfaces_interface_esi := range var_interfaces_interface_esi {
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Esi[i_interfaces_interface_esi].Identifier = v_interfaces_interface_esi.Identifier.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Esi[i_interfaces_interface_esi].All_active = v_interfaces_interface_esi.All_active.ValueStringPointer()
-            }
-                var var_interfaces_interface_ether_options []Interfaces_Interface_Ether_options_Model
-                resp.Diagnostics.Append(v_interfaces_interface.Ether_options.ElementsAs(ctx, &var_interfaces_interface_ether_options, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Ether_options = make([]xml_Interfaces_Interface_Ether_options, len(var_interfaces_interface_ether_options))
-            
-            for i_interfaces_interface_ether_options, v_interfaces_interface_ether_options := range var_interfaces_interface_ether_options {
-                var var_interfaces_interface_ether_options_ieee_802_3ad []Interfaces_Interface_Ether_options_Ieee_802_3ad_Model
-                resp.Diagnostics.Append(v_interfaces_interface_ether_options.Ieee_802_3ad.ElementsAs(ctx, &var_interfaces_interface_ether_options_ieee_802_3ad, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Ether_options[i_interfaces_interface_ether_options].Ieee_802_3ad = make([]xml_Interfaces_Interface_Ether_options_Ieee_802_3ad, len(var_interfaces_interface_ether_options_ieee_802_3ad))
-            
-            for i_interfaces_interface_ether_options_ieee_802_3ad, v_interfaces_interface_ether_options_ieee_802_3ad := range var_interfaces_interface_ether_options_ieee_802_3ad {
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Ether_options[i_interfaces_interface_ether_options].Ieee_802_3ad[i_interfaces_interface_ether_options_ieee_802_3ad].Bundle = v_interfaces_interface_ether_options_ieee_802_3ad.Bundle.ValueStringPointer()
-            }
-            }
-                var var_interfaces_interface_aggregated_ether_options []Interfaces_Interface_Aggregated_ether_options_Model
-                resp.Diagnostics.Append(v_interfaces_interface.Aggregated_ether_options.ElementsAs(ctx, &var_interfaces_interface_aggregated_ether_options, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options = make([]xml_Interfaces_Interface_Aggregated_ether_options, len(var_interfaces_interface_aggregated_ether_options))
-            
-            for i_interfaces_interface_aggregated_ether_options, v_interfaces_interface_aggregated_ether_options := range var_interfaces_interface_aggregated_ether_options {
-                var var_interfaces_interface_aggregated_ether_options_lacp []Interfaces_Interface_Aggregated_ether_options_Lacp_Model
-                resp.Diagnostics.Append(v_interfaces_interface_aggregated_ether_options.Lacp.ElementsAs(ctx, &var_interfaces_interface_aggregated_ether_options_lacp, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp = make([]xml_Interfaces_Interface_Aggregated_ether_options_Lacp, len(var_interfaces_interface_aggregated_ether_options_lacp))
-            
-            for i_interfaces_interface_aggregated_ether_options_lacp, v_interfaces_interface_aggregated_ether_options_lacp := range var_interfaces_interface_aggregated_ether_options_lacp {
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp[i_interfaces_interface_aggregated_ether_options_lacp].Active = v_interfaces_interface_aggregated_ether_options_lacp.Active.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp[i_interfaces_interface_aggregated_ether_options_lacp].Periodic = v_interfaces_interface_aggregated_ether_options_lacp.Periodic.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp[i_interfaces_interface_aggregated_ether_options_lacp].System_id = v_interfaces_interface_aggregated_ether_options_lacp.System_id.ValueStringPointer()
-            }
-            }
-                var var_interfaces_interface_unit []Interfaces_Interface_Unit_Model
-                resp.Diagnostics.Append(v_interfaces_interface.Unit.ElementsAs(ctx, &var_interfaces_interface_unit, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit = make([]xml_Interfaces_Interface_Unit, len(var_interfaces_interface_unit))
-            
-            for i_interfaces_interface_unit, v_interfaces_interface_unit := range var_interfaces_interface_unit {
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Name = v_interfaces_interface_unit.Name.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Description = v_interfaces_interface_unit.Description.ValueStringPointer()
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Vlan_id = v_interfaces_interface_unit.Vlan_id.ValueStringPointer()
-                var var_interfaces_interface_unit_family []Interfaces_Interface_Unit_Family_Model
-                resp.Diagnostics.Append(v_interfaces_interface_unit.Family.ElementsAs(ctx, &var_interfaces_interface_unit_family, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family = make([]xml_Interfaces_Interface_Unit_Family, len(var_interfaces_interface_unit_family))
-            
-            for i_interfaces_interface_unit_family, v_interfaces_interface_unit_family := range var_interfaces_interface_unit_family {
-                var var_interfaces_interface_unit_family_inet []Interfaces_Interface_Unit_Family_Inet_Model
-                resp.Diagnostics.Append(v_interfaces_interface_unit_family.Inet.ElementsAs(ctx, &var_interfaces_interface_unit_family_inet, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Inet = make([]xml_Interfaces_Interface_Unit_Family_Inet, len(var_interfaces_interface_unit_family_inet))
-            
-            for i_interfaces_interface_unit_family_inet, v_interfaces_interface_unit_family_inet := range var_interfaces_interface_unit_family_inet {
-                var var_interfaces_interface_unit_family_inet_address []Interfaces_Interface_Unit_Family_Inet_Address_Model
-                resp.Diagnostics.Append(v_interfaces_interface_unit_family_inet.Address.ElementsAs(ctx, &var_interfaces_interface_unit_family_inet_address, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Inet[i_interfaces_interface_unit_family_inet].Address = make([]xml_Interfaces_Interface_Unit_Family_Inet_Address, len(var_interfaces_interface_unit_family_inet_address))
-            
-            for i_interfaces_interface_unit_family_inet_address, v_interfaces_interface_unit_family_inet_address := range var_interfaces_interface_unit_family_inet_address {
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Inet[i_interfaces_interface_unit_family_inet].Address[i_interfaces_interface_unit_family_inet_address].Name = v_interfaces_interface_unit_family_inet_address.Name.ValueStringPointer()
-            }
-            }
-                var var_interfaces_interface_unit_family_ethernet_switching []Interfaces_Interface_Unit_Family_Ethernet_switching_Model
-                resp.Diagnostics.Append(v_interfaces_interface_unit_family.Ethernet_switching.ElementsAs(ctx, &var_interfaces_interface_unit_family_ethernet_switching, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching = make([]xml_Interfaces_Interface_Unit_Family_Ethernet_switching, len(var_interfaces_interface_unit_family_ethernet_switching))
-            
-            for i_interfaces_interface_unit_family_ethernet_switching, v_interfaces_interface_unit_family_ethernet_switching := range var_interfaces_interface_unit_family_ethernet_switching {
-                var var_interfaces_interface_unit_family_ethernet_switching_vlan []Interfaces_Interface_Unit_Family_Ethernet_switching_Vlan_Model
-                resp.Diagnostics.Append(v_interfaces_interface_unit_family_ethernet_switching.Vlan.ElementsAs(ctx, &var_interfaces_interface_unit_family_ethernet_switching_vlan, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching[i_interfaces_interface_unit_family_ethernet_switching].Vlan = make([]xml_Interfaces_Interface_Unit_Family_Ethernet_switching_Vlan, len(var_interfaces_interface_unit_family_ethernet_switching_vlan))
-            
-            for i_interfaces_interface_unit_family_ethernet_switching_vlan, v_interfaces_interface_unit_family_ethernet_switching_vlan := range var_interfaces_interface_unit_family_ethernet_switching_vlan {
-                var var_interfaces_interface_unit_family_ethernet_switching_vlan_members []string
-                resp.Diagnostics.Append(v_interfaces_interface_unit_family_ethernet_switching_vlan.Members.ElementsAs(ctx, &var_interfaces_interface_unit_family_ethernet_switching_vlan_members, false)...)
-                for _, v_interfaces_interface_unit_family_ethernet_switching_vlan_members := range var_interfaces_interface_unit_family_ethernet_switching_vlan_members {
-                    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching[i_interfaces_interface_unit_family_ethernet_switching].Vlan[i_interfaces_interface_unit_family_ethernet_switching_vlan].Members = append(config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching[i_interfaces_interface_unit_family_ethernet_switching].Vlan[i_interfaces_interface_unit_family_ethernet_switching_vlan].Members, &v_interfaces_interface_unit_family_ethernet_switching_vlan_members)
-                }
-            }
-            }
-            }
-                config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Mac = v_interfaces_interface_unit.Mac.ValueStringPointer()
-            }
-            }
+		for i_interfaces_interface_esi, v_interfaces_interface_esi := range var_interfaces_interface_esi {
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Esi[i_interfaces_interface_esi].Identifier = v_interfaces_interface_esi.Identifier.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Esi[i_interfaces_interface_esi].All_active = v_interfaces_interface_esi.All_active.ValueStringPointer()
         }
+            var var_interfaces_interface_ether_options []Interfaces_Interface_Ether_options_Model
+            resp.Diagnostics.Append(v_interfaces_interface.Ether_options.ElementsAs(ctx, &var_interfaces_interface_ether_options, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Ether_options = make([]xml_Interfaces_Interface_Ether_options, len(var_interfaces_interface_ether_options))
         
-        var var_policy_options []Policy_options_Model
-        if plan.Policy_options.IsNull() {
-            var_policy_options = []Policy_options_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Policy_options.ElementsAs(ctx, &var_policy_options, false)...)
+		for i_interfaces_interface_ether_options, v_interfaces_interface_ether_options := range var_interfaces_interface_ether_options {
+            var var_interfaces_interface_ether_options_ieee_802_3ad []Interfaces_Interface_Ether_options_Ieee_802_3ad_Model
+            resp.Diagnostics.Append(v_interfaces_interface_ether_options.Ieee_802_3ad.ElementsAs(ctx, &var_interfaces_interface_ether_options_ieee_802_3ad, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Policy_options = make([]xml_Policy_options, len(var_policy_options))
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Ether_options[i_interfaces_interface_ether_options].Ieee_802_3ad = make([]xml_Interfaces_Interface_Ether_options_Ieee_802_3ad, len(var_interfaces_interface_ether_options_ieee_802_3ad))
         
-        for i_policy_options, v_policy_options := range var_policy_options {
-            var var_policy_options_policy_statement []Policy_options_Policy_statement_Model
-            resp.Diagnostics.Append(v_policy_options.Policy_statement.ElementsAs(ctx, &var_policy_options_policy_statement, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Policy_options[i_policy_options].Policy_statement = make([]xml_Policy_options_Policy_statement, len(var_policy_options_policy_statement))
-            
-            for i_policy_options_policy_statement, v_policy_options_policy_statement := range var_policy_options_policy_statement {
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Name = v_policy_options_policy_statement.Name.ValueStringPointer()
-                var var_policy_options_policy_statement_term []Policy_options_Policy_statement_Term_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement.Term.ElementsAs(ctx, &var_policy_options_policy_statement_term, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term = make([]xml_Policy_options_Policy_statement_Term, len(var_policy_options_policy_statement_term))
-            
-            for i_policy_options_policy_statement_term, v_policy_options_policy_statement_term := range var_policy_options_policy_statement_term {
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Name = v_policy_options_policy_statement_term.Name.ValueStringPointer()
-                var var_policy_options_policy_statement_term_from []Policy_options_Policy_statement_Term_From_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement_term.From.ElementsAs(ctx, &var_policy_options_policy_statement_term_from, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From = make([]xml_Policy_options_Policy_statement_Term_From, len(var_policy_options_policy_statement_term_from))
-            
-            for i_policy_options_policy_statement_term_from, v_policy_options_policy_statement_term_from := range var_policy_options_policy_statement_term_from {
-                var var_policy_options_policy_statement_term_from_protocol []string
-                resp.Diagnostics.Append(v_policy_options_policy_statement_term_from.Protocol.ElementsAs(ctx, &var_policy_options_policy_statement_term_from_protocol, false)...)
-                for _, v_policy_options_policy_statement_term_from_protocol := range var_policy_options_policy_statement_term_from_protocol {
-                    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Protocol = append(config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Protocol, &v_policy_options_policy_statement_term_from_protocol)
-                }
-                var var_policy_options_policy_statement_term_from_route_filter []Policy_options_Policy_statement_Term_From_Route_filter_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement_term_from.Route_filter.ElementsAs(ctx, &var_policy_options_policy_statement_term_from_route_filter, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter = make([]xml_Policy_options_Policy_statement_Term_From_Route_filter, len(var_policy_options_policy_statement_term_from_route_filter))
-            
-            for i_policy_options_policy_statement_term_from_route_filter, v_policy_options_policy_statement_term_from_route_filter := range var_policy_options_policy_statement_term_from_route_filter {
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Address = v_policy_options_policy_statement_term_from_route_filter.Address.ValueStringPointer()
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Exact = v_policy_options_policy_statement_term_from_route_filter.Exact.ValueStringPointer()
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Orlonger = v_policy_options_policy_statement_term_from_route_filter.Orlonger.ValueStringPointer()
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Prefix_length_range = v_policy_options_policy_statement_term_from_route_filter.Prefix_length_range.ValueStringPointer()
-            }
-            }
-                var var_policy_options_policy_statement_term_then []Policy_options_Policy_statement_Term_Then_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement_term.Then.ElementsAs(ctx, &var_policy_options_policy_statement_term_then, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then = make([]xml_Policy_options_Policy_statement_Term_Then, len(var_policy_options_policy_statement_term_then))
-            
-            for i_policy_options_policy_statement_term_then, v_policy_options_policy_statement_term_then := range var_policy_options_policy_statement_term_then {
-                var var_policy_options_policy_statement_term_then_community []Policy_options_Policy_statement_Term_Then_Community_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement_term_then.Community.ElementsAs(ctx, &var_policy_options_policy_statement_term_then_community, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Community = make([]xml_Policy_options_Policy_statement_Term_Then_Community, len(var_policy_options_policy_statement_term_then_community))
-            
-            for i_policy_options_policy_statement_term_then_community, v_policy_options_policy_statement_term_then_community := range var_policy_options_policy_statement_term_then_community {
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Community[i_policy_options_policy_statement_term_then_community].Add = v_policy_options_policy_statement_term_then_community.Add.ValueStringPointer()
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Community[i_policy_options_policy_statement_term_then_community].Community_name = v_policy_options_policy_statement_term_then_community.Community_name.ValueStringPointer()
-            }
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Accept = v_policy_options_policy_statement_term_then.Accept.ValueStringPointer()
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Reject = v_policy_options_policy_statement_term_then.Reject.ValueStringPointer()
-            }
-            }
-                var var_policy_options_policy_statement_then []Policy_options_Policy_statement_Then_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement.Then.ElementsAs(ctx, &var_policy_options_policy_statement_then, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Then = make([]xml_Policy_options_Policy_statement_Then, len(var_policy_options_policy_statement_then))
-            
-            for i_policy_options_policy_statement_then, v_policy_options_policy_statement_then := range var_policy_options_policy_statement_then {
-                var var_policy_options_policy_statement_then_load_balance []Policy_options_Policy_statement_Then_Load_balance_Model
-                resp.Diagnostics.Append(v_policy_options_policy_statement_then.Load_balance.ElementsAs(ctx, &var_policy_options_policy_statement_then_load_balance, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Then[i_policy_options_policy_statement_then].Load_balance = make([]xml_Policy_options_Policy_statement_Then_Load_balance, len(var_policy_options_policy_statement_then_load_balance))
-            
-            for i_policy_options_policy_statement_then_load_balance, v_policy_options_policy_statement_then_load_balance := range var_policy_options_policy_statement_then_load_balance {
-                config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Then[i_policy_options_policy_statement_then].Load_balance[i_policy_options_policy_statement_then_load_balance].Per_packet = v_policy_options_policy_statement_then_load_balance.Per_packet.ValueStringPointer()
-            }
-            }
-            }
-            var var_policy_options_community []Policy_options_Community_Model
-            resp.Diagnostics.Append(v_policy_options.Community.ElementsAs(ctx, &var_policy_options_community, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Policy_options[i_policy_options].Community = make([]xml_Policy_options_Community, len(var_policy_options_community))
-            
-            for i_policy_options_community, v_policy_options_community := range var_policy_options_community {
-                config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Name = v_policy_options_community.Name.ValueStringPointer()
-                var var_policy_options_community_members []string
-                resp.Diagnostics.Append(v_policy_options_community.Members.ElementsAs(ctx, &var_policy_options_community_members, false)...)
-                for _, v_policy_options_community_members := range var_policy_options_community_members {
-                    config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Members = append(config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Members, &v_policy_options_community_members)
-                }
-            }
+		for i_interfaces_interface_ether_options_ieee_802_3ad, v_interfaces_interface_ether_options_ieee_802_3ad := range var_interfaces_interface_ether_options_ieee_802_3ad {
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Ether_options[i_interfaces_interface_ether_options].Ieee_802_3ad[i_interfaces_interface_ether_options_ieee_802_3ad].Bundle = v_interfaces_interface_ether_options_ieee_802_3ad.Bundle.ValueStringPointer()
         }
+        }
+            var var_interfaces_interface_aggregated_ether_options []Interfaces_Interface_Aggregated_ether_options_Model
+            resp.Diagnostics.Append(v_interfaces_interface.Aggregated_ether_options.ElementsAs(ctx, &var_interfaces_interface_aggregated_ether_options, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options = make([]xml_Interfaces_Interface_Aggregated_ether_options, len(var_interfaces_interface_aggregated_ether_options))
         
-        var var_protocols []Protocols_Model
-        if plan.Protocols.IsNull() {
-            var_protocols = []Protocols_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Protocols.ElementsAs(ctx, &var_protocols, false)...)
+		for i_interfaces_interface_aggregated_ether_options, v_interfaces_interface_aggregated_ether_options := range var_interfaces_interface_aggregated_ether_options {
+            var var_interfaces_interface_aggregated_ether_options_lacp []Interfaces_Interface_Aggregated_ether_options_Lacp_Model
+            resp.Diagnostics.Append(v_interfaces_interface_aggregated_ether_options.Lacp.ElementsAs(ctx, &var_interfaces_interface_aggregated_ether_options_lacp, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Protocols = make([]xml_Protocols, len(var_protocols))
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp = make([]xml_Interfaces_Interface_Aggregated_ether_options_Lacp, len(var_interfaces_interface_aggregated_ether_options_lacp))
         
-        for i_protocols, v_protocols := range var_protocols {
-            var var_protocols_bgp []Protocols_Bgp_Model
-            resp.Diagnostics.Append(v_protocols.Bgp.ElementsAs(ctx, &var_protocols_bgp, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Protocols[i_protocols].Bgp = make([]xml_Protocols_Bgp, len(var_protocols_bgp))
-            
-            for i_protocols_bgp, v_protocols_bgp := range var_protocols_bgp {
-                var var_protocols_bgp_group []Protocols_Bgp_Group_Model
-                resp.Diagnostics.Append(v_protocols_bgp.Group.ElementsAs(ctx, &var_protocols_bgp_group, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group = make([]xml_Protocols_Bgp_Group, len(var_protocols_bgp_group))
-            
-            for i_protocols_bgp_group, v_protocols_bgp_group := range var_protocols_bgp_group {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Name = v_protocols_bgp_group.Name.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Type = v_protocols_bgp_group.Type.ValueStringPointer()
-                var var_protocols_bgp_group_multihop []Protocols_Bgp_Group_Multihop_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group.Multihop.ElementsAs(ctx, &var_protocols_bgp_group_multihop, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multihop = make([]xml_Protocols_Bgp_Group_Multihop, len(var_protocols_bgp_group_multihop))
-            
-            for i_protocols_bgp_group_multihop, v_protocols_bgp_group_multihop := range var_protocols_bgp_group_multihop {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multihop[i_protocols_bgp_group_multihop].No_nexthop_change = v_protocols_bgp_group_multihop.No_nexthop_change.ValueStringPointer()
-            }
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Local_address = v_protocols_bgp_group.Local_address.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Mtu_discovery = v_protocols_bgp_group.Mtu_discovery.ValueStringPointer()
-                var var_protocols_bgp_group_import []string
-                resp.Diagnostics.Append(v_protocols_bgp_group.Import.ElementsAs(ctx, &var_protocols_bgp_group_import, false)...)
-                for _, v_protocols_bgp_group_import := range var_protocols_bgp_group_import {
-                    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Import = append(config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Import, &v_protocols_bgp_group_import)
-                }
-                var var_protocols_bgp_group_family []Protocols_Bgp_Group_Family_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group.Family.ElementsAs(ctx, &var_protocols_bgp_group_family, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family = make([]xml_Protocols_Bgp_Group_Family, len(var_protocols_bgp_group_family))
-            
-            for i_protocols_bgp_group_family, v_protocols_bgp_group_family := range var_protocols_bgp_group_family {
-                var var_protocols_bgp_group_family_evpn []Protocols_Bgp_Group_Family_Evpn_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group_family.Evpn.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn = make([]xml_Protocols_Bgp_Group_Family_Evpn, len(var_protocols_bgp_group_family_evpn))
-            
-            for i_protocols_bgp_group_family_evpn, v_protocols_bgp_group_family_evpn := range var_protocols_bgp_group_family_evpn {
-                var var_protocols_bgp_group_family_evpn_signaling []Protocols_Bgp_Group_Family_Evpn_Signaling_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group_family_evpn.Signaling.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn_signaling, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling = make([]xml_Protocols_Bgp_Group_Family_Evpn_Signaling, len(var_protocols_bgp_group_family_evpn_signaling))
-            
-            for i_protocols_bgp_group_family_evpn_signaling, v_protocols_bgp_group_family_evpn_signaling := range var_protocols_bgp_group_family_evpn_signaling {
-                var var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements []Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group_family_evpn_signaling.Delay_route_advertisements.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling[i_protocols_bgp_group_family_evpn_signaling].Delay_route_advertisements = make([]xml_Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements, len(var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements))
-            
-            for i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements, v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements := range var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements {
-                var var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay []Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements_Minimum_delay_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements.Minimum_delay.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling[i_protocols_bgp_group_family_evpn_signaling].Delay_route_advertisements[i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements].Minimum_delay = make([]xml_Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements_Minimum_delay, len(var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay))
-            
-            for i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay, v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay := range var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling[i_protocols_bgp_group_family_evpn_signaling].Delay_route_advertisements[i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements].Minimum_delay[i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay].Routing_uptime = v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay.Routing_uptime.ValueStringPointer()
-            }
-            }
-            }
-            }
-            }
-                var var_protocols_bgp_group_export []string
-                resp.Diagnostics.Append(v_protocols_bgp_group.Export.ElementsAs(ctx, &var_protocols_bgp_group_export, false)...)
-                for _, v_protocols_bgp_group_export := range var_protocols_bgp_group_export {
-                    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Export = append(config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Export, &v_protocols_bgp_group_export)
-                }
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Vpn_apply_export = v_protocols_bgp_group.Vpn_apply_export.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Cluster = v_protocols_bgp_group.Cluster.ValueStringPointer()
-                var var_protocols_bgp_group_local_as []Protocols_Bgp_Group_Local_as_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group.Local_as.ElementsAs(ctx, &var_protocols_bgp_group_local_as, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Local_as = make([]xml_Protocols_Bgp_Group_Local_as, len(var_protocols_bgp_group_local_as))
-            
-            for i_protocols_bgp_group_local_as, v_protocols_bgp_group_local_as := range var_protocols_bgp_group_local_as {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Local_as[i_protocols_bgp_group_local_as].As_number = v_protocols_bgp_group_local_as.As_number.ValueStringPointer()
-            }
-                var var_protocols_bgp_group_multipath []Protocols_Bgp_Group_Multipath_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group.Multipath.ElementsAs(ctx, &var_protocols_bgp_group_multipath, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multipath = make([]xml_Protocols_Bgp_Group_Multipath, len(var_protocols_bgp_group_multipath))
-            
-            for i_protocols_bgp_group_multipath, v_protocols_bgp_group_multipath := range var_protocols_bgp_group_multipath {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multipath[i_protocols_bgp_group_multipath].Multiple_as = v_protocols_bgp_group_multipath.Multiple_as.ValueStringPointer()
-            }
-                var var_protocols_bgp_group_bfd_liveness_detection []Protocols_Bgp_Group_Bfd_liveness_detection_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group.Bfd_liveness_detection.ElementsAs(ctx, &var_protocols_bgp_group_bfd_liveness_detection, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Bfd_liveness_detection = make([]xml_Protocols_Bgp_Group_Bfd_liveness_detection, len(var_protocols_bgp_group_bfd_liveness_detection))
-            
-            for i_protocols_bgp_group_bfd_liveness_detection, v_protocols_bgp_group_bfd_liveness_detection := range var_protocols_bgp_group_bfd_liveness_detection {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Bfd_liveness_detection[i_protocols_bgp_group_bfd_liveness_detection].Minimum_interval = v_protocols_bgp_group_bfd_liveness_detection.Minimum_interval.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Bfd_liveness_detection[i_protocols_bgp_group_bfd_liveness_detection].Multiplier = v_protocols_bgp_group_bfd_liveness_detection.Multiplier.ValueStringPointer()
-            }
-                var var_protocols_bgp_group_allow []string
-                resp.Diagnostics.Append(v_protocols_bgp_group.Allow.ElementsAs(ctx, &var_protocols_bgp_group_allow, false)...)
-                for _, v_protocols_bgp_group_allow := range var_protocols_bgp_group_allow {
-                    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Allow = append(config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Allow, &v_protocols_bgp_group_allow)
-                }
-                var var_protocols_bgp_group_neighbor []Protocols_Bgp_Group_Neighbor_Model
-                resp.Diagnostics.Append(v_protocols_bgp_group.Neighbor.ElementsAs(ctx, &var_protocols_bgp_group_neighbor, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor = make([]xml_Protocols_Bgp_Group_Neighbor, len(var_protocols_bgp_group_neighbor))
-            
-            for i_protocols_bgp_group_neighbor, v_protocols_bgp_group_neighbor := range var_protocols_bgp_group_neighbor {
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor[i_protocols_bgp_group_neighbor].Name = v_protocols_bgp_group_neighbor.Name.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor[i_protocols_bgp_group_neighbor].Description = v_protocols_bgp_group_neighbor.Description.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor[i_protocols_bgp_group_neighbor].Peer_as = v_protocols_bgp_group_neighbor.Peer_as.ValueStringPointer()
-            }
-            }
-            }
-            var var_protocols_evpn []Protocols_Evpn_Model
-            resp.Diagnostics.Append(v_protocols.Evpn.ElementsAs(ctx, &var_protocols_evpn, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Protocols[i_protocols].Evpn = make([]xml_Protocols_Evpn, len(var_protocols_evpn))
-            
-            for i_protocols_evpn, v_protocols_evpn := range var_protocols_evpn {
-                config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Encapsulation = v_protocols_evpn.Encapsulation.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Multicast_mode = v_protocols_evpn.Multicast_mode.ValueStringPointer()
-                config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Default_gateway = v_protocols_evpn.Default_gateway.ValueStringPointer()
-                var var_protocols_evpn_extended_vni_list []string
-                resp.Diagnostics.Append(v_protocols_evpn.Extended_vni_list.ElementsAs(ctx, &var_protocols_evpn_extended_vni_list, false)...)
-                for _, v_protocols_evpn_extended_vni_list := range var_protocols_evpn_extended_vni_list {
-                    config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Extended_vni_list = append(config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Extended_vni_list, &v_protocols_evpn_extended_vni_list)
-                }
-                config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].No_core_isolation = v_protocols_evpn.No_core_isolation.ValueStringPointer()
-            }
-            var var_protocols_lldp []Protocols_Lldp_Model
-            resp.Diagnostics.Append(v_protocols.Lldp.ElementsAs(ctx, &var_protocols_lldp, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Protocols[i_protocols].Lldp = make([]xml_Protocols_Lldp, len(var_protocols_lldp))
-            
-            for i_protocols_lldp, v_protocols_lldp := range var_protocols_lldp {
-                var var_protocols_lldp_interface []Protocols_Lldp_Interface_Model
-                resp.Diagnostics.Append(v_protocols_lldp.Interface.ElementsAs(ctx, &var_protocols_lldp_interface, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Lldp[i_protocols_lldp].Interface = make([]xml_Protocols_Lldp_Interface, len(var_protocols_lldp_interface))
-            
-            for i_protocols_lldp_interface, v_protocols_lldp_interface := range var_protocols_lldp_interface {
-                config.Groups.Protocols[i_protocols].Lldp[i_protocols_lldp].Interface[i_protocols_lldp_interface].Name = v_protocols_lldp_interface.Name.ValueStringPointer()
-            }
-            }
-            var var_protocols_igmp_snooping []Protocols_Igmp_snooping_Model
-            resp.Diagnostics.Append(v_protocols.Igmp_snooping.ElementsAs(ctx, &var_protocols_igmp_snooping, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Protocols[i_protocols].Igmp_snooping = make([]xml_Protocols_Igmp_snooping, len(var_protocols_igmp_snooping))
-            
-            for i_protocols_igmp_snooping, v_protocols_igmp_snooping := range var_protocols_igmp_snooping {
-                var var_protocols_igmp_snooping_vlan []Protocols_Igmp_snooping_Vlan_Model
-                resp.Diagnostics.Append(v_protocols_igmp_snooping.Vlan.ElementsAs(ctx, &var_protocols_igmp_snooping_vlan, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Protocols[i_protocols].Igmp_snooping[i_protocols_igmp_snooping].Vlan = make([]xml_Protocols_Igmp_snooping_Vlan, len(var_protocols_igmp_snooping_vlan))
-            
-            for i_protocols_igmp_snooping_vlan, v_protocols_igmp_snooping_vlan := range var_protocols_igmp_snooping_vlan {
-                config.Groups.Protocols[i_protocols].Igmp_snooping[i_protocols_igmp_snooping].Vlan[i_protocols_igmp_snooping_vlan].Name = v_protocols_igmp_snooping_vlan.Name.ValueStringPointer()
-            }
-            }
+		for i_interfaces_interface_aggregated_ether_options_lacp, v_interfaces_interface_aggregated_ether_options_lacp := range var_interfaces_interface_aggregated_ether_options_lacp {
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp[i_interfaces_interface_aggregated_ether_options_lacp].Active = v_interfaces_interface_aggregated_ether_options_lacp.Active.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp[i_interfaces_interface_aggregated_ether_options_lacp].Periodic = v_interfaces_interface_aggregated_ether_options_lacp.Periodic.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Aggregated_ether_options[i_interfaces_interface_aggregated_ether_options].Lacp[i_interfaces_interface_aggregated_ether_options_lacp].System_id = v_interfaces_interface_aggregated_ether_options_lacp.System_id.ValueStringPointer()
         }
+        }
+            var var_interfaces_interface_unit []Interfaces_Interface_Unit_Model
+            resp.Diagnostics.Append(v_interfaces_interface.Unit.ElementsAs(ctx, &var_interfaces_interface_unit, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit = make([]xml_Interfaces_Interface_Unit, len(var_interfaces_interface_unit))
         
-        var var_routing_instances []Routing_instances_Model
-        if plan.Routing_instances.IsNull() {
-            var_routing_instances = []Routing_instances_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Routing_instances.ElementsAs(ctx, &var_routing_instances, false)...)
+		for i_interfaces_interface_unit, v_interfaces_interface_unit := range var_interfaces_interface_unit {
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Name = v_interfaces_interface_unit.Name.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Description = v_interfaces_interface_unit.Description.ValueStringPointer()
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Vlan_id = v_interfaces_interface_unit.Vlan_id.ValueStringPointer()
+            var var_interfaces_interface_unit_family []Interfaces_Interface_Unit_Family_Model
+            resp.Diagnostics.Append(v_interfaces_interface_unit.Family.ElementsAs(ctx, &var_interfaces_interface_unit_family, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Routing_instances = make([]xml_Routing_instances, len(var_routing_instances))
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family = make([]xml_Interfaces_Interface_Unit_Family, len(var_interfaces_interface_unit_family))
         
-        for i_routing_instances, v_routing_instances := range var_routing_instances {
-            var var_routing_instances_instance []Routing_instances_Instance_Model
-            resp.Diagnostics.Append(v_routing_instances.Instance.ElementsAs(ctx, &var_routing_instances_instance, false)...)
+		for i_interfaces_interface_unit_family, v_interfaces_interface_unit_family := range var_interfaces_interface_unit_family {
+            var var_interfaces_interface_unit_family_inet []Interfaces_Interface_Unit_Family_Inet_Model
+            resp.Diagnostics.Append(v_interfaces_interface_unit_family.Inet.ElementsAs(ctx, &var_interfaces_interface_unit_family_inet, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-            config.Groups.Routing_instances[i_routing_instances].Instance = make([]xml_Routing_instances_Instance, len(var_routing_instances_instance))
-            
-            for i_routing_instances_instance, v_routing_instances_instance := range var_routing_instances_instance {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Name = v_routing_instances_instance.Name.ValueStringPointer()
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Instance_type = v_routing_instances_instance.Instance_type.ValueStringPointer()
-                var var_routing_instances_instance_interface []Routing_instances_Instance_Interface_Model
-                resp.Diagnostics.Append(v_routing_instances_instance.Interface.ElementsAs(ctx, &var_routing_instances_instance_interface, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Interface = make([]xml_Routing_instances_Instance_Interface, len(var_routing_instances_instance_interface))
-            
-            for i_routing_instances_instance_interface, v_routing_instances_instance_interface := range var_routing_instances_instance_interface {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Interface[i_routing_instances_instance_interface].Name = v_routing_instances_instance_interface.Name.ValueStringPointer()
-            }
-                var var_routing_instances_instance_route_distinguisher []Routing_instances_Instance_Route_distinguisher_Model
-                resp.Diagnostics.Append(v_routing_instances_instance.Route_distinguisher.ElementsAs(ctx, &var_routing_instances_instance_route_distinguisher, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Route_distinguisher = make([]xml_Routing_instances_Instance_Route_distinguisher, len(var_routing_instances_instance_route_distinguisher))
-            
-            for i_routing_instances_instance_route_distinguisher, v_routing_instances_instance_route_distinguisher := range var_routing_instances_instance_route_distinguisher {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Route_distinguisher[i_routing_instances_instance_route_distinguisher].Rd_type = v_routing_instances_instance_route_distinguisher.Rd_type.ValueStringPointer()
-            }
-                var var_routing_instances_instance_vrf_target []Routing_instances_Instance_Vrf_target_Model
-                resp.Diagnostics.Append(v_routing_instances_instance.Vrf_target.ElementsAs(ctx, &var_routing_instances_instance_vrf_target, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Vrf_target = make([]xml_Routing_instances_Instance_Vrf_target, len(var_routing_instances_instance_vrf_target))
-            
-            for i_routing_instances_instance_vrf_target, v_routing_instances_instance_vrf_target := range var_routing_instances_instance_vrf_target {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Vrf_target[i_routing_instances_instance_vrf_target].Community = v_routing_instances_instance_vrf_target.Community.ValueStringPointer()
-            }
-                var var_routing_instances_instance_vrf_table_label []Routing_instances_Instance_Vrf_table_label_Model
-                resp.Diagnostics.Append(v_routing_instances_instance.Vrf_table_label.ElementsAs(ctx, &var_routing_instances_instance_vrf_table_label, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Vrf_table_label = make([]xml_Routing_instances_Instance_Vrf_table_label, len(var_routing_instances_instance_vrf_table_label))
-            
-                var var_routing_instances_instance_routing_options []Routing_instances_Instance_Routing_options_Model
-                resp.Diagnostics.Append(v_routing_instances_instance.Routing_options.ElementsAs(ctx, &var_routing_instances_instance_routing_options, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Routing_options = make([]xml_Routing_instances_Instance_Routing_options, len(var_routing_instances_instance_routing_options))
-            
-            for i_routing_instances_instance_routing_options, v_routing_instances_instance_routing_options := range var_routing_instances_instance_routing_options {
-                var var_routing_instances_instance_routing_options_auto_export []Routing_instances_Instance_Routing_options_Auto_export_Model
-                resp.Diagnostics.Append(v_routing_instances_instance_routing_options.Auto_export.ElementsAs(ctx, &var_routing_instances_instance_routing_options_auto_export, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Routing_options[i_routing_instances_instance_routing_options].Auto_export = make([]xml_Routing_instances_Instance_Routing_options_Auto_export, len(var_routing_instances_instance_routing_options_auto_export))
-            
-            }
-                var var_routing_instances_instance_protocols []Routing_instances_Instance_Protocols_Model
-                resp.Diagnostics.Append(v_routing_instances_instance.Protocols.ElementsAs(ctx, &var_routing_instances_instance_protocols, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols = make([]xml_Routing_instances_Instance_Protocols, len(var_routing_instances_instance_protocols))
-            
-            for i_routing_instances_instance_protocols, v_routing_instances_instance_protocols := range var_routing_instances_instance_protocols {
-                var var_routing_instances_instance_protocols_ospf []Routing_instances_Instance_Protocols_Ospf_Model
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols.Ospf.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf = make([]xml_Routing_instances_Instance_Protocols_Ospf, len(var_routing_instances_instance_protocols_ospf))
-            
-            for i_routing_instances_instance_protocols_ospf, v_routing_instances_instance_protocols_ospf := range var_routing_instances_instance_protocols_ospf {
-                var var_routing_instances_instance_protocols_ospf_export []string
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols_ospf.Export.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf_export, false)...)
-                for _, v_routing_instances_instance_protocols_ospf_export := range var_routing_instances_instance_protocols_ospf_export {
-                    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Export = append(config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Export, &v_routing_instances_instance_protocols_ospf_export)
-                }
-                var var_routing_instances_instance_protocols_ospf_area []Routing_instances_Instance_Protocols_Ospf_Area_Model
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols_ospf.Area.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf_area, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area = make([]xml_Routing_instances_Instance_Protocols_Ospf_Area, len(var_routing_instances_instance_protocols_ospf_area))
-            
-            for i_routing_instances_instance_protocols_ospf_area, v_routing_instances_instance_protocols_ospf_area := range var_routing_instances_instance_protocols_ospf_area {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Name = v_routing_instances_instance_protocols_ospf_area.Name.ValueStringPointer()
-                var var_routing_instances_instance_protocols_ospf_area_interface []Routing_instances_Instance_Protocols_Ospf_Area_Interface_Model
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols_ospf_area.Interface.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf_area_interface, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Interface = make([]xml_Routing_instances_Instance_Protocols_Ospf_Area_Interface, len(var_routing_instances_instance_protocols_ospf_area_interface))
-            
-            for i_routing_instances_instance_protocols_ospf_area_interface, v_routing_instances_instance_protocols_ospf_area_interface := range var_routing_instances_instance_protocols_ospf_area_interface {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Interface[i_routing_instances_instance_protocols_ospf_area_interface].Name = v_routing_instances_instance_protocols_ospf_area_interface.Name.ValueStringPointer()
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Interface[i_routing_instances_instance_protocols_ospf_area_interface].Metric = v_routing_instances_instance_protocols_ospf_area_interface.Metric.ValueStringPointer()
-            }
-            }
-            }
-                var var_routing_instances_instance_protocols_evpn []Routing_instances_Instance_Protocols_Evpn_Model
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols.Evpn.ElementsAs(ctx, &var_routing_instances_instance_protocols_evpn, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn = make([]xml_Routing_instances_Instance_Protocols_Evpn, len(var_routing_instances_instance_protocols_evpn))
-            
-            for i_routing_instances_instance_protocols_evpn, v_routing_instances_instance_protocols_evpn := range var_routing_instances_instance_protocols_evpn {
-                var var_routing_instances_instance_protocols_evpn_ip_prefix_routes []Routing_instances_Instance_Protocols_Evpn_Ip_prefix_routes_Model
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols_evpn.Ip_prefix_routes.ElementsAs(ctx, &var_routing_instances_instance_protocols_evpn_ip_prefix_routes, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes = make([]xml_Routing_instances_Instance_Protocols_Evpn_Ip_prefix_routes, len(var_routing_instances_instance_protocols_evpn_ip_prefix_routes))
-            
-            for i_routing_instances_instance_protocols_evpn_ip_prefix_routes, v_routing_instances_instance_protocols_evpn_ip_prefix_routes := range var_routing_instances_instance_protocols_evpn_ip_prefix_routes {
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Advertise = v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Advertise.ValueStringPointer()
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Encapsulation = v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Encapsulation.ValueStringPointer()
-                config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Vni = v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Vni.ValueStringPointer()
-                var var_routing_instances_instance_protocols_evpn_ip_prefix_routes_export []string
-                resp.Diagnostics.Append(v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Export.ElementsAs(ctx, &var_routing_instances_instance_protocols_evpn_ip_prefix_routes_export, false)...)
-                for _, v_routing_instances_instance_protocols_evpn_ip_prefix_routes_export := range var_routing_instances_instance_protocols_evpn_ip_prefix_routes_export {
-                    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Export = append(config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Export, &v_routing_instances_instance_protocols_evpn_ip_prefix_routes_export)
-                }
-            }
-            }
-            }
-            }
-        }
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Inet = make([]xml_Interfaces_Interface_Unit_Family_Inet, len(var_interfaces_interface_unit_family_inet))
         
-        var var_routing_options []Routing_options_Model
-        if plan.Routing_options.IsNull() {
-            var_routing_options = []Routing_options_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Routing_options.ElementsAs(ctx, &var_routing_options, false)...)
+		for i_interfaces_interface_unit_family_inet, v_interfaces_interface_unit_family_inet := range var_interfaces_interface_unit_family_inet {
+            var var_interfaces_interface_unit_family_inet_address []Interfaces_Interface_Unit_Family_Inet_Address_Model
+            resp.Diagnostics.Append(v_interfaces_interface_unit_family_inet.Address.ElementsAs(ctx, &var_interfaces_interface_unit_family_inet_address, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Routing_options = make([]xml_Routing_options, len(var_routing_options))
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Inet[i_interfaces_interface_unit_family_inet].Address = make([]xml_Interfaces_Interface_Unit_Family_Inet_Address, len(var_interfaces_interface_unit_family_inet_address))
         
-        for i_routing_options, v_routing_options := range var_routing_options {
-            var var_routing_options_static []Routing_options_Static_Model
-            resp.Diagnostics.Append(v_routing_options.Static.ElementsAs(ctx, &var_routing_options_static, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Routing_options[i_routing_options].Static = make([]xml_Routing_options_Static, len(var_routing_options_static))
-            
-            for i_routing_options_static, v_routing_options_static := range var_routing_options_static {
-                var var_routing_options_static_route []Routing_options_Static_Route_Model
-                resp.Diagnostics.Append(v_routing_options_static.Route.ElementsAs(ctx, &var_routing_options_static_route, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route = make([]xml_Routing_options_Static_Route, len(var_routing_options_static_route))
-            
-            for i_routing_options_static_route, v_routing_options_static_route := range var_routing_options_static_route {
-                config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route[i_routing_options_static_route].Name = v_routing_options_static_route.Name.ValueStringPointer()
-                var var_routing_options_static_route_next_hop []string
-                resp.Diagnostics.Append(v_routing_options_static_route.Next_hop.ElementsAs(ctx, &var_routing_options_static_route_next_hop, false)...)
-                for _, v_routing_options_static_route_next_hop := range var_routing_options_static_route_next_hop {
-                    config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route[i_routing_options_static_route].Next_hop = append(config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route[i_routing_options_static_route].Next_hop, &v_routing_options_static_route_next_hop)
-                }
-            }
-            }
-            config.Groups.Routing_options[i_routing_options].Router_id = v_routing_options.Router_id.ValueStringPointer()
-            var var_routing_options_forwarding_table []Routing_options_Forwarding_table_Model
-            resp.Diagnostics.Append(v_routing_options.Forwarding_table.ElementsAs(ctx, &var_routing_options_forwarding_table, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Routing_options[i_routing_options].Forwarding_table = make([]xml_Routing_options_Forwarding_table, len(var_routing_options_forwarding_table))
-            
-            for i_routing_options_forwarding_table, v_routing_options_forwarding_table := range var_routing_options_forwarding_table {
-                var var_routing_options_forwarding_table_export []string
-                resp.Diagnostics.Append(v_routing_options_forwarding_table.Export.ElementsAs(ctx, &var_routing_options_forwarding_table_export, false)...)
-                for _, v_routing_options_forwarding_table_export := range var_routing_options_forwarding_table_export {
-                    config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Export = append(config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Export, &v_routing_options_forwarding_table_export)
-                }
-                config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Ecmp_fast_reroute = v_routing_options_forwarding_table.Ecmp_fast_reroute.ValueStringPointer()
-                var var_routing_options_forwarding_table_chained_composite_next_hop []Routing_options_Forwarding_table_Chained_composite_next_hop_Model
-                resp.Diagnostics.Append(v_routing_options_forwarding_table.Chained_composite_next_hop.ElementsAs(ctx, &var_routing_options_forwarding_table_chained_composite_next_hop, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Chained_composite_next_hop = make([]xml_Routing_options_Forwarding_table_Chained_composite_next_hop, len(var_routing_options_forwarding_table_chained_composite_next_hop))
-            
-            for i_routing_options_forwarding_table_chained_composite_next_hop, v_routing_options_forwarding_table_chained_composite_next_hop := range var_routing_options_forwarding_table_chained_composite_next_hop {
-                var var_routing_options_forwarding_table_chained_composite_next_hop_ingress []Routing_options_Forwarding_table_Chained_composite_next_hop_Ingress_Model
-                resp.Diagnostics.Append(v_routing_options_forwarding_table_chained_composite_next_hop.Ingress.ElementsAs(ctx, &var_routing_options_forwarding_table_chained_composite_next_hop_ingress, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Chained_composite_next_hop[i_routing_options_forwarding_table_chained_composite_next_hop].Ingress = make([]xml_Routing_options_Forwarding_table_Chained_composite_next_hop_Ingress, len(var_routing_options_forwarding_table_chained_composite_next_hop_ingress))
-            
-            for i_routing_options_forwarding_table_chained_composite_next_hop_ingress, v_routing_options_forwarding_table_chained_composite_next_hop_ingress := range var_routing_options_forwarding_table_chained_composite_next_hop_ingress {
-                config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Chained_composite_next_hop[i_routing_options_forwarding_table_chained_composite_next_hop].Ingress[i_routing_options_forwarding_table_chained_composite_next_hop_ingress].Evpn = v_routing_options_forwarding_table_chained_composite_next_hop_ingress.Evpn.ValueStringPointer()
-            }
-            }
-            }
+		for i_interfaces_interface_unit_family_inet_address, v_interfaces_interface_unit_family_inet_address := range var_interfaces_interface_unit_family_inet_address {
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Inet[i_interfaces_interface_unit_family_inet].Address[i_interfaces_interface_unit_family_inet_address].Name = v_interfaces_interface_unit_family_inet_address.Name.ValueStringPointer()
         }
+        }
+            var var_interfaces_interface_unit_family_ethernet_switching []Interfaces_Interface_Unit_Family_Ethernet_switching_Model
+            resp.Diagnostics.Append(v_interfaces_interface_unit_family.Ethernet_switching.ElementsAs(ctx, &var_interfaces_interface_unit_family_ethernet_switching, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching = make([]xml_Interfaces_Interface_Unit_Family_Ethernet_switching, len(var_interfaces_interface_unit_family_ethernet_switching))
         
-        var var_snmp []Snmp_Model
-        if plan.Snmp.IsNull() {
-            var_snmp = []Snmp_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Snmp.ElementsAs(ctx, &var_snmp, false)...)
+		for i_interfaces_interface_unit_family_ethernet_switching, v_interfaces_interface_unit_family_ethernet_switching := range var_interfaces_interface_unit_family_ethernet_switching {
+            var var_interfaces_interface_unit_family_ethernet_switching_vlan []Interfaces_Interface_Unit_Family_Ethernet_switching_Vlan_Model
+            resp.Diagnostics.Append(v_interfaces_interface_unit_family_ethernet_switching.Vlan.ElementsAs(ctx, &var_interfaces_interface_unit_family_ethernet_switching_vlan, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Snmp = make([]xml_Snmp, len(var_snmp))
+	    config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching[i_interfaces_interface_unit_family_ethernet_switching].Vlan = make([]xml_Interfaces_Interface_Unit_Family_Ethernet_switching_Vlan, len(var_interfaces_interface_unit_family_ethernet_switching_vlan))
         
-        for i_snmp, v_snmp := range var_snmp {
-            config.Groups.Snmp[i_snmp].Location = v_snmp.Location.ValueStringPointer()
-            config.Groups.Snmp[i_snmp].Contact = v_snmp.Contact.ValueStringPointer()
-            var var_snmp_community []Snmp_Community_Model
-            resp.Diagnostics.Append(v_snmp.Community.ElementsAs(ctx, &var_snmp_community, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Snmp[i_snmp].Community = make([]xml_Snmp_Community, len(var_snmp_community))
-            
-            for i_snmp_community, v_snmp_community := range var_snmp_community {
-                config.Groups.Snmp[i_snmp].Community[i_snmp_community].Name = v_snmp_community.Name.ValueStringPointer()
-                config.Groups.Snmp[i_snmp].Community[i_snmp_community].Authorization = v_snmp_community.Authorization.ValueStringPointer()
-            }
+		for i_interfaces_interface_unit_family_ethernet_switching_vlan, v_interfaces_interface_unit_family_ethernet_switching_vlan := range var_interfaces_interface_unit_family_ethernet_switching_vlan {
+			var var_interfaces_interface_unit_family_ethernet_switching_vlan_members []string
+			resp.Diagnostics.Append(v_interfaces_interface_unit_family_ethernet_switching_vlan.Members.ElementsAs(ctx, &var_interfaces_interface_unit_family_ethernet_switching_vlan_members, false)...)
+			for _, v_interfaces_interface_unit_family_ethernet_switching_vlan_members := range var_interfaces_interface_unit_family_ethernet_switching_vlan_members {
+				config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching[i_interfaces_interface_unit_family_ethernet_switching].Vlan[i_interfaces_interface_unit_family_ethernet_switching_vlan].Members = append(config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Family[i_interfaces_interface_unit_family].Ethernet_switching[i_interfaces_interface_unit_family_ethernet_switching].Vlan[i_interfaces_interface_unit_family_ethernet_switching_vlan].Members, &v_interfaces_interface_unit_family_ethernet_switching_vlan_members)
+			}
         }
+        }
+        }
+            config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Mac = v_interfaces_interface_unit.Mac.ValueStringPointer()
+        }
+        }
+		}
+		
+		var var_policy_options []Policy_options_Model
+		if plan.Policy_options.IsNull() {
+			var_policy_options = []Policy_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Policy_options.ElementsAs(ctx, &var_policy_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Policy_options = make([]xml_Policy_options, len(var_policy_options))
+		
+		for i_policy_options, v_policy_options := range var_policy_options {
+			var var_policy_options_policy_statement []Policy_options_Policy_statement_Model
+			resp.Diagnostics.Append(v_policy_options.Policy_statement.ElementsAs(ctx, &var_policy_options_policy_statement, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Policy_options[i_policy_options].Policy_statement = make([]xml_Policy_options_Policy_statement, len(var_policy_options_policy_statement))
         
-        var var_switch_options []Switch_options_Model
-        if plan.Switch_options.IsNull() {
-            var_switch_options = []Switch_options_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Switch_options.ElementsAs(ctx, &var_switch_options, false)...)
+		for i_policy_options_policy_statement, v_policy_options_policy_statement := range var_policy_options_policy_statement {
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Name = v_policy_options_policy_statement.Name.ValueStringPointer()
+            var var_policy_options_policy_statement_term []Policy_options_Policy_statement_Term_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement.Term.ElementsAs(ctx, &var_policy_options_policy_statement_term, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Switch_options = make([]xml_Switch_options, len(var_switch_options))
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term = make([]xml_Policy_options_Policy_statement_Term, len(var_policy_options_policy_statement_term))
         
-        for i_switch_options, v_switch_options := range var_switch_options {
-            var var_switch_options_vtep_source_interface []Switch_options_Vtep_source_interface_Model
-            resp.Diagnostics.Append(v_switch_options.Vtep_source_interface.ElementsAs(ctx, &var_switch_options_vtep_source_interface, false)...)
+		for i_policy_options_policy_statement_term, v_policy_options_policy_statement_term := range var_policy_options_policy_statement_term {
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Name = v_policy_options_policy_statement_term.Name.ValueStringPointer()
+            var var_policy_options_policy_statement_term_from []Policy_options_Policy_statement_Term_From_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement_term.From.ElementsAs(ctx, &var_policy_options_policy_statement_term_from, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-            config.Groups.Switch_options[i_switch_options].Vtep_source_interface = make([]xml_Switch_options_Vtep_source_interface, len(var_switch_options_vtep_source_interface))
-            
-            for i_switch_options_vtep_source_interface, v_switch_options_vtep_source_interface := range var_switch_options_vtep_source_interface {
-                config.Groups.Switch_options[i_switch_options].Vtep_source_interface[i_switch_options_vtep_source_interface].Interface_name = v_switch_options_vtep_source_interface.Interface_name.ValueStringPointer()
-            }
-            var var_switch_options_route_distinguisher []Switch_options_Route_distinguisher_Model
-            resp.Diagnostics.Append(v_switch_options.Route_distinguisher.ElementsAs(ctx, &var_switch_options_route_distinguisher, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Switch_options[i_switch_options].Route_distinguisher = make([]xml_Switch_options_Route_distinguisher, len(var_switch_options_route_distinguisher))
-            
-            for i_switch_options_route_distinguisher, v_switch_options_route_distinguisher := range var_switch_options_route_distinguisher {
-                config.Groups.Switch_options[i_switch_options].Route_distinguisher[i_switch_options_route_distinguisher].Rd_type = v_switch_options_route_distinguisher.Rd_type.ValueStringPointer()
-            }
-            var var_switch_options_vrf_target []Switch_options_Vrf_target_Model
-            resp.Diagnostics.Append(v_switch_options.Vrf_target.ElementsAs(ctx, &var_switch_options_vrf_target, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Switch_options[i_switch_options].Vrf_target = make([]xml_Switch_options_Vrf_target, len(var_switch_options_vrf_target))
-            
-            for i_switch_options_vrf_target, v_switch_options_vrf_target := range var_switch_options_vrf_target {
-                config.Groups.Switch_options[i_switch_options].Vrf_target[i_switch_options_vrf_target].Community = v_switch_options_vrf_target.Community.ValueStringPointer()
-                var var_switch_options_vrf_target_auto []Switch_options_Vrf_target_Auto_Model
-                resp.Diagnostics.Append(v_switch_options_vrf_target.Auto.ElementsAs(ctx, &var_switch_options_vrf_target_auto, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Switch_options[i_switch_options].Vrf_target[i_switch_options_vrf_target].Auto = make([]xml_Switch_options_Vrf_target_Auto, len(var_switch_options_vrf_target_auto))
-            
-            }
-        }
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From = make([]xml_Policy_options_Policy_statement_Term_From, len(var_policy_options_policy_statement_term_from))
         
-        var var_system []System_Model
-        if plan.System.IsNull() {
-            var_system = []System_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.System.ElementsAs(ctx, &var_system, false)...)
+		for i_policy_options_policy_statement_term_from, v_policy_options_policy_statement_term_from := range var_policy_options_policy_statement_term_from {
+			var var_policy_options_policy_statement_term_from_protocol []string
+			resp.Diagnostics.Append(v_policy_options_policy_statement_term_from.Protocol.ElementsAs(ctx, &var_policy_options_policy_statement_term_from_protocol, false)...)
+			for _, v_policy_options_policy_statement_term_from_protocol := range var_policy_options_policy_statement_term_from_protocol {
+				config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Protocol = append(config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Protocol, &v_policy_options_policy_statement_term_from_protocol)
+			}
+            var var_policy_options_policy_statement_term_from_route_filter []Policy_options_Policy_statement_Term_From_Route_filter_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement_term_from.Route_filter.ElementsAs(ctx, &var_policy_options_policy_statement_term_from_route_filter, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.System = make([]xml_System, len(var_system))
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter = make([]xml_Policy_options_Policy_statement_Term_From_Route_filter, len(var_policy_options_policy_statement_term_from_route_filter))
         
-        for i_system, v_system := range var_system {
-            var var_system_login []System_Login_Model
-            resp.Diagnostics.Append(v_system.Login.ElementsAs(ctx, &var_system_login, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.System[i_system].Login = make([]xml_System_Login, len(var_system_login))
-            
-            for i_system_login, v_system_login := range var_system_login {
-                var var_system_login_user []System_Login_User_Model
-                resp.Diagnostics.Append(v_system_login.User.ElementsAs(ctx, &var_system_login_user, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Login[i_system_login].User = make([]xml_System_Login_User, len(var_system_login_user))
-            
-            for i_system_login_user, v_system_login_user := range var_system_login_user {
-                config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Name = v_system_login_user.Name.ValueStringPointer()
-                config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Uid = v_system_login_user.Uid.ValueStringPointer()
-                config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Class = v_system_login_user.Class.ValueStringPointer()
-                var var_system_login_user_authentication []System_Login_User_Authentication_Model
-                resp.Diagnostics.Append(v_system_login_user.Authentication.ElementsAs(ctx, &var_system_login_user_authentication, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Authentication = make([]xml_System_Login_User_Authentication, len(var_system_login_user_authentication))
-            
-            for i_system_login_user_authentication, v_system_login_user_authentication := range var_system_login_user_authentication {
-                config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Authentication[i_system_login_user_authentication].Encrypted_password = v_system_login_user_authentication.Encrypted_password.ValueStringPointer()
-            }
-            }
-                config.Groups.System[i_system].Login[i_system_login].Message = v_system_login.Message.ValueStringPointer()
-            }
-            var var_system_root_authentication []System_Root_authentication_Model
-            resp.Diagnostics.Append(v_system.Root_authentication.ElementsAs(ctx, &var_system_root_authentication, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.System[i_system].Root_authentication = make([]xml_System_Root_authentication, len(var_system_root_authentication))
-            
-            for i_system_root_authentication, v_system_root_authentication := range var_system_root_authentication {
-                config.Groups.System[i_system].Root_authentication[i_system_root_authentication].Encrypted_password = v_system_root_authentication.Encrypted_password.ValueStringPointer()
-            }
-            config.Groups.System[i_system].Host_name = v_system.Host_name.ValueStringPointer()
-            var var_system_services []System_Services_Model
-            resp.Diagnostics.Append(v_system.Services.ElementsAs(ctx, &var_system_services, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.System[i_system].Services = make([]xml_System_Services, len(var_system_services))
-            
-            for i_system_services, v_system_services := range var_system_services {
-                var var_system_services_ssh []System_Services_Ssh_Model
-                resp.Diagnostics.Append(v_system_services.Ssh.ElementsAs(ctx, &var_system_services_ssh, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Ssh = make([]xml_System_Services_Ssh, len(var_system_services_ssh))
-            
-            for i_system_services_ssh, v_system_services_ssh := range var_system_services_ssh {
-                config.Groups.System[i_system].Services[i_system_services].Ssh[i_system_services_ssh].Root_login = v_system_services_ssh.Root_login.ValueStringPointer()
-            }
-                var var_system_services_extension_service []System_Services_Extension_service_Model
-                resp.Diagnostics.Append(v_system_services.Extension_service.ElementsAs(ctx, &var_system_services_extension_service, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Extension_service = make([]xml_System_Services_Extension_service, len(var_system_services_extension_service))
-            
-            for i_system_services_extension_service, v_system_services_extension_service := range var_system_services_extension_service {
-                var var_system_services_extension_service_request_response []System_Services_Extension_service_Request_response_Model
-                resp.Diagnostics.Append(v_system_services_extension_service.Request_response.ElementsAs(ctx, &var_system_services_extension_service_request_response, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Request_response = make([]xml_System_Services_Extension_service_Request_response, len(var_system_services_extension_service_request_response))
-            
-            for i_system_services_extension_service_request_response, v_system_services_extension_service_request_response := range var_system_services_extension_service_request_response {
-                var var_system_services_extension_service_request_response_grpc []System_Services_Extension_service_Request_response_Grpc_Model
-                resp.Diagnostics.Append(v_system_services_extension_service_request_response.Grpc.ElementsAs(ctx, &var_system_services_extension_service_request_response_grpc, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Request_response[i_system_services_extension_service_request_response].Grpc = make([]xml_System_Services_Extension_service_Request_response_Grpc, len(var_system_services_extension_service_request_response_grpc))
-            
-            for i_system_services_extension_service_request_response_grpc, v_system_services_extension_service_request_response_grpc := range var_system_services_extension_service_request_response_grpc {
-                config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Request_response[i_system_services_extension_service_request_response].Grpc[i_system_services_extension_service_request_response_grpc].Max_connections = v_system_services_extension_service_request_response_grpc.Max_connections.ValueStringPointer()
-            }
-            }
-                var var_system_services_extension_service_notification []System_Services_Extension_service_Notification_Model
-                resp.Diagnostics.Append(v_system_services_extension_service.Notification.ElementsAs(ctx, &var_system_services_extension_service_notification, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification = make([]xml_System_Services_Extension_service_Notification, len(var_system_services_extension_service_notification))
-            
-            for i_system_services_extension_service_notification, v_system_services_extension_service_notification := range var_system_services_extension_service_notification {
-                var var_system_services_extension_service_notification_allow_clients []System_Services_Extension_service_Notification_Allow_clients_Model
-                resp.Diagnostics.Append(v_system_services_extension_service_notification.Allow_clients.ElementsAs(ctx, &var_system_services_extension_service_notification_allow_clients, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification[i_system_services_extension_service_notification].Allow_clients = make([]xml_System_Services_Extension_service_Notification_Allow_clients, len(var_system_services_extension_service_notification_allow_clients))
-            
-            for i_system_services_extension_service_notification_allow_clients, v_system_services_extension_service_notification_allow_clients := range var_system_services_extension_service_notification_allow_clients {
-                var var_system_services_extension_service_notification_allow_clients_address []string
-                resp.Diagnostics.Append(v_system_services_extension_service_notification_allow_clients.Address.ElementsAs(ctx, &var_system_services_extension_service_notification_allow_clients_address, false)...)
-                for _, v_system_services_extension_service_notification_allow_clients_address := range var_system_services_extension_service_notification_allow_clients_address {
-                    config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification[i_system_services_extension_service_notification].Allow_clients[i_system_services_extension_service_notification_allow_clients].Address = append(config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification[i_system_services_extension_service_notification].Allow_clients[i_system_services_extension_service_notification_allow_clients].Address, &v_system_services_extension_service_notification_allow_clients_address)
-                }
-            }
-            }
-            }
-                var var_system_services_netconf []System_Services_Netconf_Model
-                resp.Diagnostics.Append(v_system_services.Netconf.ElementsAs(ctx, &var_system_services_netconf, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Netconf = make([]xml_System_Services_Netconf, len(var_system_services_netconf))
-            
-            for i_system_services_netconf, v_system_services_netconf := range var_system_services_netconf {
-                var var_system_services_netconf_ssh []System_Services_Netconf_Ssh_Model
-                resp.Diagnostics.Append(v_system_services_netconf.Ssh.ElementsAs(ctx, &var_system_services_netconf_ssh, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Netconf[i_system_services_netconf].Ssh = make([]xml_System_Services_Netconf_Ssh, len(var_system_services_netconf_ssh))
-            
-            }
-                var var_system_services_rest []System_Services_Rest_Model
-                resp.Diagnostics.Append(v_system_services.Rest.ElementsAs(ctx, &var_system_services_rest, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Rest = make([]xml_System_Services_Rest, len(var_system_services_rest))
-            
-            for i_system_services_rest, v_system_services_rest := range var_system_services_rest {
-                var var_system_services_rest_http []System_Services_Rest_Http_Model
-                resp.Diagnostics.Append(v_system_services_rest.Http.ElementsAs(ctx, &var_system_services_rest_http, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Http = make([]xml_System_Services_Rest_Http, len(var_system_services_rest_http))
-            
-            for i_system_services_rest_http, v_system_services_rest_http := range var_system_services_rest_http {
-                config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Http[i_system_services_rest_http].Port = v_system_services_rest_http.Port.ValueStringPointer()
-            }
-                config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Enable_explorer = v_system_services_rest.Enable_explorer.ValueStringPointer()
-            }
-            }
-            var var_system_syslog []System_Syslog_Model
-            resp.Diagnostics.Append(v_system.Syslog.ElementsAs(ctx, &var_system_syslog, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.System[i_system].Syslog = make([]xml_System_Syslog, len(var_system_syslog))
-            
-            for i_system_syslog, v_system_syslog := range var_system_syslog {
-                var var_system_syslog_user []System_Syslog_User_Model
-                resp.Diagnostics.Append(v_system_syslog.User.ElementsAs(ctx, &var_system_syslog_user, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Syslog[i_system_syslog].User = make([]xml_System_Syslog_User, len(var_system_syslog_user))
-            
-            for i_system_syslog_user, v_system_syslog_user := range var_system_syslog_user {
-                config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Name = v_system_syslog_user.Name.ValueStringPointer()
-                var var_system_syslog_user_contents []System_Syslog_User_Contents_Model
-                resp.Diagnostics.Append(v_system_syslog_user.Contents.ElementsAs(ctx, &var_system_syslog_user_contents, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Contents = make([]xml_System_Syslog_User_Contents, len(var_system_syslog_user_contents))
-            
-            for i_system_syslog_user_contents, v_system_syslog_user_contents := range var_system_syslog_user_contents {
-                config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Contents[i_system_syslog_user_contents].Name = v_system_syslog_user_contents.Name.ValueStringPointer()
-                config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Contents[i_system_syslog_user_contents].Emergency = v_system_syslog_user_contents.Emergency.ValueStringPointer()
-            }
-            }
-                var var_system_syslog_file []System_Syslog_File_Model
-                resp.Diagnostics.Append(v_system_syslog.File.ElementsAs(ctx, &var_system_syslog_file, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Syslog[i_system_syslog].File = make([]xml_System_Syslog_File, len(var_system_syslog_file))
-            
-            for i_system_syslog_file, v_system_syslog_file := range var_system_syslog_file {
-                config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Name = v_system_syslog_file.Name.ValueStringPointer()
-                var var_system_syslog_file_contents []System_Syslog_File_Contents_Model
-                resp.Diagnostics.Append(v_system_syslog_file.Contents.ElementsAs(ctx, &var_system_syslog_file_contents, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents = make([]xml_System_Syslog_File_Contents, len(var_system_syslog_file_contents))
-            
-            for i_system_syslog_file_contents, v_system_syslog_file_contents := range var_system_syslog_file_contents {
-                config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Name = v_system_syslog_file_contents.Name.ValueStringPointer()
-                config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Any = v_system_syslog_file_contents.Any.ValueStringPointer()
-                config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Notice = v_system_syslog_file_contents.Notice.ValueStringPointer()
-                config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Info = v_system_syslog_file_contents.Info.ValueStringPointer()
-            }
-            }
-            }
-            var var_system_extensions []System_Extensions_Model
-            resp.Diagnostics.Append(v_system.Extensions.ElementsAs(ctx, &var_system_extensions, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.System[i_system].Extensions = make([]xml_System_Extensions, len(var_system_extensions))
-            
-            for i_system_extensions, v_system_extensions := range var_system_extensions {
-                var var_system_extensions_providers []System_Extensions_Providers_Model
-                resp.Diagnostics.Append(v_system_extensions.Providers.ElementsAs(ctx, &var_system_extensions_providers, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Extensions[i_system_extensions].Providers = make([]xml_System_Extensions_Providers, len(var_system_extensions_providers))
-            
-            for i_system_extensions_providers, v_system_extensions_providers := range var_system_extensions_providers {
-                config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].Name = v_system_extensions_providers.Name.ValueStringPointer()
-                var var_system_extensions_providers_license_type []System_Extensions_Providers_License_type_Model
-                resp.Diagnostics.Append(v_system_extensions_providers.License_type.ElementsAs(ctx, &var_system_extensions_providers_license_type, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type = make([]xml_System_Extensions_Providers_License_type, len(var_system_extensions_providers_license_type))
-            
-            for i_system_extensions_providers_license_type, v_system_extensions_providers_license_type := range var_system_extensions_providers_license_type {
-                config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type[i_system_extensions_providers_license_type].Name = v_system_extensions_providers_license_type.Name.ValueStringPointer()
-                var var_system_extensions_providers_license_type_deployment_scope []string
-                resp.Diagnostics.Append(v_system_extensions_providers_license_type.Deployment_scope.ElementsAs(ctx, &var_system_extensions_providers_license_type_deployment_scope, false)...)
-                for _, v_system_extensions_providers_license_type_deployment_scope := range var_system_extensions_providers_license_type_deployment_scope {
-                    config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type[i_system_extensions_providers_license_type].Deployment_scope = append(config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type[i_system_extensions_providers_license_type].Deployment_scope, &v_system_extensions_providers_license_type_deployment_scope)
-                }
-            }
-            }
-            }
+		for i_policy_options_policy_statement_term_from_route_filter, v_policy_options_policy_statement_term_from_route_filter := range var_policy_options_policy_statement_term_from_route_filter {
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Address = v_policy_options_policy_statement_term_from_route_filter.Address.ValueStringPointer()
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Exact = v_policy_options_policy_statement_term_from_route_filter.Exact.ValueStringPointer()
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Orlonger = v_policy_options_policy_statement_term_from_route_filter.Orlonger.ValueStringPointer()
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].From[i_policy_options_policy_statement_term_from].Route_filter[i_policy_options_policy_statement_term_from_route_filter].Prefix_length_range = v_policy_options_policy_statement_term_from_route_filter.Prefix_length_range.ValueStringPointer()
         }
+        }
+            var var_policy_options_policy_statement_term_then []Policy_options_Policy_statement_Term_Then_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement_term.Then.ElementsAs(ctx, &var_policy_options_policy_statement_term_then, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then = make([]xml_Policy_options_Policy_statement_Term_Then, len(var_policy_options_policy_statement_term_then))
         
-        var var_vlans []Vlans_Model
-        if plan.Vlans.IsNull() {
-            var_vlans = []Vlans_Model{}
-        }else {
-            resp.Diagnostics.Append(plan.Vlans.ElementsAs(ctx, &var_vlans, false)...)
+		for i_policy_options_policy_statement_term_then, v_policy_options_policy_statement_term_then := range var_policy_options_policy_statement_term_then {
+            var var_policy_options_policy_statement_term_then_community []Policy_options_Policy_statement_Term_Then_Community_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement_term_then.Community.ElementsAs(ctx, &var_policy_options_policy_statement_term_then_community, false)...)
             if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
+                return
             }
-        }
-        config.Groups.Vlans = make([]xml_Vlans, len(var_vlans))
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Community = make([]xml_Policy_options_Policy_statement_Term_Then_Community, len(var_policy_options_policy_statement_term_then_community))
         
-        for i_vlans, v_vlans := range var_vlans {
-            var var_vlans_vlan []Vlans_Vlan_Model
-            resp.Diagnostics.Append(v_vlans.Vlan.ElementsAs(ctx, &var_vlans_vlan, false)...)
-            if resp.Diagnostics.HasError() {
-                return xml_Configuration{}
-            }
-            config.Groups.Vlans[i_vlans].Vlan = make([]xml_Vlans_Vlan, len(var_vlans_vlan))
-            
-            for i_vlans_vlan, v_vlans_vlan := range var_vlans_vlan {
-                config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Name = v_vlans_vlan.Name.ValueStringPointer()
-                config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vlan_id = v_vlans_vlan.Vlan_id.ValueStringPointer()
-                config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].L3_interface = v_vlans_vlan.L3_interface.ValueStringPointer()
-                var var_vlans_vlan_vxlan []Vlans_Vlan_Vxlan_Model
-                resp.Diagnostics.Append(v_vlans_vlan.Vxlan.ElementsAs(ctx, &var_vlans_vlan_vxlan, false)...)
-                if resp.Diagnostics.HasError() {
-                    return xml_Configuration{}
-                }
-            config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vxlan = make([]xml_Vlans_Vlan_Vxlan, len(var_vlans_vlan_vxlan))
-            
-            for i_vlans_vlan_vxlan, v_vlans_vlan_vxlan := range var_vlans_vlan_vxlan {
-                config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vxlan[i_vlans_vlan_vxlan].Vni = v_vlans_vlan_vxlan.Vni.ValueStringPointer()
-            }
-            }
+		for i_policy_options_policy_statement_term_then_community, v_policy_options_policy_statement_term_then_community := range var_policy_options_policy_statement_term_then_community {
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Community[i_policy_options_policy_statement_term_then_community].Add = v_policy_options_policy_statement_term_then_community.Add.ValueStringPointer()
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Community[i_policy_options_policy_statement_term_then_community].Community_name = v_policy_options_policy_statement_term_then_community.Community_name.ValueStringPointer()
         }
-
-        return config
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Accept = v_policy_options_policy_statement_term_then.Accept.ValueStringPointer()
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Term[i_policy_options_policy_statement_term].Then[i_policy_options_policy_statement_term_then].Reject = v_policy_options_policy_statement_term_then.Reject.ValueStringPointer()
+        }
+        }
+            var var_policy_options_policy_statement_then []Policy_options_Policy_statement_Then_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement.Then.ElementsAs(ctx, &var_policy_options_policy_statement_then, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Then = make([]xml_Policy_options_Policy_statement_Then, len(var_policy_options_policy_statement_then))
+        
+		for i_policy_options_policy_statement_then, v_policy_options_policy_statement_then := range var_policy_options_policy_statement_then {
+            var var_policy_options_policy_statement_then_load_balance []Policy_options_Policy_statement_Then_Load_balance_Model
+            resp.Diagnostics.Append(v_policy_options_policy_statement_then.Load_balance.ElementsAs(ctx, &var_policy_options_policy_statement_then_load_balance, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Then[i_policy_options_policy_statement_then].Load_balance = make([]xml_Policy_options_Policy_statement_Then_Load_balance, len(var_policy_options_policy_statement_then_load_balance))
+        
+		for i_policy_options_policy_statement_then_load_balance, v_policy_options_policy_statement_then_load_balance := range var_policy_options_policy_statement_then_load_balance {
+            config.Groups.Policy_options[i_policy_options].Policy_statement[i_policy_options_policy_statement].Then[i_policy_options_policy_statement_then].Load_balance[i_policy_options_policy_statement_then_load_balance].Per_packet = v_policy_options_policy_statement_then_load_balance.Per_packet.ValueStringPointer()
+        }
+        }
+        }
+			var var_policy_options_community []Policy_options_Community_Model
+			resp.Diagnostics.Append(v_policy_options.Community.ElementsAs(ctx, &var_policy_options_community, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Policy_options[i_policy_options].Community = make([]xml_Policy_options_Community, len(var_policy_options_community))
+        
+		for i_policy_options_community, v_policy_options_community := range var_policy_options_community {
+            config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Name = v_policy_options_community.Name.ValueStringPointer()
+			var var_policy_options_community_members []string
+			resp.Diagnostics.Append(v_policy_options_community.Members.ElementsAs(ctx, &var_policy_options_community_members, false)...)
+			for _, v_policy_options_community_members := range var_policy_options_community_members {
+				config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Members = append(config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Members, &v_policy_options_community_members)
+			}
+        }
+		}
+		
+		var var_protocols []Protocols_Model
+		if plan.Protocols.IsNull() {
+			var_protocols = []Protocols_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Protocols.ElementsAs(ctx, &var_protocols, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Protocols = make([]xml_Protocols, len(var_protocols))
+		
+		for i_protocols, v_protocols := range var_protocols {
+			var var_protocols_bgp []Protocols_Bgp_Model
+			resp.Diagnostics.Append(v_protocols.Bgp.ElementsAs(ctx, &var_protocols_bgp, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Protocols[i_protocols].Bgp = make([]xml_Protocols_Bgp, len(var_protocols_bgp))
+        
+		for i_protocols_bgp, v_protocols_bgp := range var_protocols_bgp {
+            var var_protocols_bgp_group []Protocols_Bgp_Group_Model
+            resp.Diagnostics.Append(v_protocols_bgp.Group.ElementsAs(ctx, &var_protocols_bgp_group, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group = make([]xml_Protocols_Bgp_Group, len(var_protocols_bgp_group))
+        
+		for i_protocols_bgp_group, v_protocols_bgp_group := range var_protocols_bgp_group {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Name = v_protocols_bgp_group.Name.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Type = v_protocols_bgp_group.Type.ValueStringPointer()
+            var var_protocols_bgp_group_multihop []Protocols_Bgp_Group_Multihop_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group.Multihop.ElementsAs(ctx, &var_protocols_bgp_group_multihop, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multihop = make([]xml_Protocols_Bgp_Group_Multihop, len(var_protocols_bgp_group_multihop))
+        
+		for i_protocols_bgp_group_multihop, v_protocols_bgp_group_multihop := range var_protocols_bgp_group_multihop {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multihop[i_protocols_bgp_group_multihop].No_nexthop_change = v_protocols_bgp_group_multihop.No_nexthop_change.ValueStringPointer()
+        }
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Local_address = v_protocols_bgp_group.Local_address.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Mtu_discovery = v_protocols_bgp_group.Mtu_discovery.ValueStringPointer()
+			var var_protocols_bgp_group_import []string
+			resp.Diagnostics.Append(v_protocols_bgp_group.Import.ElementsAs(ctx, &var_protocols_bgp_group_import, false)...)
+			for _, v_protocols_bgp_group_import := range var_protocols_bgp_group_import {
+				config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Import = append(config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Import, &v_protocols_bgp_group_import)
+			}
+            var var_protocols_bgp_group_family []Protocols_Bgp_Group_Family_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group.Family.ElementsAs(ctx, &var_protocols_bgp_group_family, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family = make([]xml_Protocols_Bgp_Group_Family, len(var_protocols_bgp_group_family))
+        
+		for i_protocols_bgp_group_family, v_protocols_bgp_group_family := range var_protocols_bgp_group_family {
+            var var_protocols_bgp_group_family_evpn []Protocols_Bgp_Group_Family_Evpn_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group_family.Evpn.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn = make([]xml_Protocols_Bgp_Group_Family_Evpn, len(var_protocols_bgp_group_family_evpn))
+        
+		for i_protocols_bgp_group_family_evpn, v_protocols_bgp_group_family_evpn := range var_protocols_bgp_group_family_evpn {
+            var var_protocols_bgp_group_family_evpn_signaling []Protocols_Bgp_Group_Family_Evpn_Signaling_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group_family_evpn.Signaling.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn_signaling, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling = make([]xml_Protocols_Bgp_Group_Family_Evpn_Signaling, len(var_protocols_bgp_group_family_evpn_signaling))
+        
+		for i_protocols_bgp_group_family_evpn_signaling, v_protocols_bgp_group_family_evpn_signaling := range var_protocols_bgp_group_family_evpn_signaling {
+            var var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements []Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group_family_evpn_signaling.Delay_route_advertisements.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling[i_protocols_bgp_group_family_evpn_signaling].Delay_route_advertisements = make([]xml_Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements, len(var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements))
+        
+		for i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements, v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements := range var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements {
+            var var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay []Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements_Minimum_delay_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements.Minimum_delay.ElementsAs(ctx, &var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling[i_protocols_bgp_group_family_evpn_signaling].Delay_route_advertisements[i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements].Minimum_delay = make([]xml_Protocols_Bgp_Group_Family_Evpn_Signaling_Delay_route_advertisements_Minimum_delay, len(var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay))
+        
+		for i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay, v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay := range var_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Family[i_protocols_bgp_group_family].Evpn[i_protocols_bgp_group_family_evpn].Signaling[i_protocols_bgp_group_family_evpn_signaling].Delay_route_advertisements[i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements].Minimum_delay[i_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay].Routing_uptime = v_protocols_bgp_group_family_evpn_signaling_delay_route_advertisements_minimum_delay.Routing_uptime.ValueStringPointer()
+        }
+        }
+        }
+        }
+        }
+			var var_protocols_bgp_group_export []string
+			resp.Diagnostics.Append(v_protocols_bgp_group.Export.ElementsAs(ctx, &var_protocols_bgp_group_export, false)...)
+			for _, v_protocols_bgp_group_export := range var_protocols_bgp_group_export {
+				config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Export = append(config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Export, &v_protocols_bgp_group_export)
+			}
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Vpn_apply_export = v_protocols_bgp_group.Vpn_apply_export.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Cluster = v_protocols_bgp_group.Cluster.ValueStringPointer()
+            var var_protocols_bgp_group_local_as []Protocols_Bgp_Group_Local_as_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group.Local_as.ElementsAs(ctx, &var_protocols_bgp_group_local_as, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Local_as = make([]xml_Protocols_Bgp_Group_Local_as, len(var_protocols_bgp_group_local_as))
+        
+		for i_protocols_bgp_group_local_as, v_protocols_bgp_group_local_as := range var_protocols_bgp_group_local_as {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Local_as[i_protocols_bgp_group_local_as].As_number = v_protocols_bgp_group_local_as.As_number.ValueStringPointer()
+        }
+            var var_protocols_bgp_group_multipath []Protocols_Bgp_Group_Multipath_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group.Multipath.ElementsAs(ctx, &var_protocols_bgp_group_multipath, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multipath = make([]xml_Protocols_Bgp_Group_Multipath, len(var_protocols_bgp_group_multipath))
+        
+		for i_protocols_bgp_group_multipath, v_protocols_bgp_group_multipath := range var_protocols_bgp_group_multipath {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Multipath[i_protocols_bgp_group_multipath].Multiple_as = v_protocols_bgp_group_multipath.Multiple_as.ValueStringPointer()
+        }
+            var var_protocols_bgp_group_bfd_liveness_detection []Protocols_Bgp_Group_Bfd_liveness_detection_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group.Bfd_liveness_detection.ElementsAs(ctx, &var_protocols_bgp_group_bfd_liveness_detection, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Bfd_liveness_detection = make([]xml_Protocols_Bgp_Group_Bfd_liveness_detection, len(var_protocols_bgp_group_bfd_liveness_detection))
+        
+		for i_protocols_bgp_group_bfd_liveness_detection, v_protocols_bgp_group_bfd_liveness_detection := range var_protocols_bgp_group_bfd_liveness_detection {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Bfd_liveness_detection[i_protocols_bgp_group_bfd_liveness_detection].Minimum_interval = v_protocols_bgp_group_bfd_liveness_detection.Minimum_interval.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Bfd_liveness_detection[i_protocols_bgp_group_bfd_liveness_detection].Multiplier = v_protocols_bgp_group_bfd_liveness_detection.Multiplier.ValueStringPointer()
+        }
+			var var_protocols_bgp_group_allow []string
+			resp.Diagnostics.Append(v_protocols_bgp_group.Allow.ElementsAs(ctx, &var_protocols_bgp_group_allow, false)...)
+			for _, v_protocols_bgp_group_allow := range var_protocols_bgp_group_allow {
+				config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Allow = append(config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Allow, &v_protocols_bgp_group_allow)
+			}
+            var var_protocols_bgp_group_neighbor []Protocols_Bgp_Group_Neighbor_Model
+            resp.Diagnostics.Append(v_protocols_bgp_group.Neighbor.ElementsAs(ctx, &var_protocols_bgp_group_neighbor, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor = make([]xml_Protocols_Bgp_Group_Neighbor, len(var_protocols_bgp_group_neighbor))
+        
+		for i_protocols_bgp_group_neighbor, v_protocols_bgp_group_neighbor := range var_protocols_bgp_group_neighbor {
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor[i_protocols_bgp_group_neighbor].Name = v_protocols_bgp_group_neighbor.Name.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor[i_protocols_bgp_group_neighbor].Description = v_protocols_bgp_group_neighbor.Description.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Bgp[i_protocols_bgp].Group[i_protocols_bgp_group].Neighbor[i_protocols_bgp_group_neighbor].Peer_as = v_protocols_bgp_group_neighbor.Peer_as.ValueStringPointer()
+        }
+        }
+        }
+			var var_protocols_evpn []Protocols_Evpn_Model
+			resp.Diagnostics.Append(v_protocols.Evpn.ElementsAs(ctx, &var_protocols_evpn, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Protocols[i_protocols].Evpn = make([]xml_Protocols_Evpn, len(var_protocols_evpn))
+        
+		for i_protocols_evpn, v_protocols_evpn := range var_protocols_evpn {
+            config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Encapsulation = v_protocols_evpn.Encapsulation.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Multicast_mode = v_protocols_evpn.Multicast_mode.ValueStringPointer()
+            config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Default_gateway = v_protocols_evpn.Default_gateway.ValueStringPointer()
+			var var_protocols_evpn_extended_vni_list []string
+			resp.Diagnostics.Append(v_protocols_evpn.Extended_vni_list.ElementsAs(ctx, &var_protocols_evpn_extended_vni_list, false)...)
+			for _, v_protocols_evpn_extended_vni_list := range var_protocols_evpn_extended_vni_list {
+				config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Extended_vni_list = append(config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].Extended_vni_list, &v_protocols_evpn_extended_vni_list)
+			}
+            config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].No_core_isolation = v_protocols_evpn.No_core_isolation.ValueStringPointer()
+        }
+			var var_protocols_lldp []Protocols_Lldp_Model
+			resp.Diagnostics.Append(v_protocols.Lldp.ElementsAs(ctx, &var_protocols_lldp, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Protocols[i_protocols].Lldp = make([]xml_Protocols_Lldp, len(var_protocols_lldp))
+        
+		for i_protocols_lldp, v_protocols_lldp := range var_protocols_lldp {
+            var var_protocols_lldp_interface []Protocols_Lldp_Interface_Model
+            resp.Diagnostics.Append(v_protocols_lldp.Interface.ElementsAs(ctx, &var_protocols_lldp_interface, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Lldp[i_protocols_lldp].Interface = make([]xml_Protocols_Lldp_Interface, len(var_protocols_lldp_interface))
+        
+		for i_protocols_lldp_interface, v_protocols_lldp_interface := range var_protocols_lldp_interface {
+            config.Groups.Protocols[i_protocols].Lldp[i_protocols_lldp].Interface[i_protocols_lldp_interface].Name = v_protocols_lldp_interface.Name.ValueStringPointer()
+        }
+        }
+			var var_protocols_igmp_snooping []Protocols_Igmp_snooping_Model
+			resp.Diagnostics.Append(v_protocols.Igmp_snooping.ElementsAs(ctx, &var_protocols_igmp_snooping, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Protocols[i_protocols].Igmp_snooping = make([]xml_Protocols_Igmp_snooping, len(var_protocols_igmp_snooping))
+        
+		for i_protocols_igmp_snooping, v_protocols_igmp_snooping := range var_protocols_igmp_snooping {
+            var var_protocols_igmp_snooping_vlan []Protocols_Igmp_snooping_Vlan_Model
+            resp.Diagnostics.Append(v_protocols_igmp_snooping.Vlan.ElementsAs(ctx, &var_protocols_igmp_snooping_vlan, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Protocols[i_protocols].Igmp_snooping[i_protocols_igmp_snooping].Vlan = make([]xml_Protocols_Igmp_snooping_Vlan, len(var_protocols_igmp_snooping_vlan))
+        
+		for i_protocols_igmp_snooping_vlan, v_protocols_igmp_snooping_vlan := range var_protocols_igmp_snooping_vlan {
+            config.Groups.Protocols[i_protocols].Igmp_snooping[i_protocols_igmp_snooping].Vlan[i_protocols_igmp_snooping_vlan].Name = v_protocols_igmp_snooping_vlan.Name.ValueStringPointer()
+        }
+        }
+		}
+		
+		var var_routing_instances []Routing_instances_Model
+		if plan.Routing_instances.IsNull() {
+			var_routing_instances = []Routing_instances_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Routing_instances.ElementsAs(ctx, &var_routing_instances, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Routing_instances = make([]xml_Routing_instances, len(var_routing_instances))
+		
+		for i_routing_instances, v_routing_instances := range var_routing_instances {
+			var var_routing_instances_instance []Routing_instances_Instance_Model
+			resp.Diagnostics.Append(v_routing_instances.Instance.ElementsAs(ctx, &var_routing_instances_instance, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Routing_instances[i_routing_instances].Instance = make([]xml_Routing_instances_Instance, len(var_routing_instances_instance))
+        
+		for i_routing_instances_instance, v_routing_instances_instance := range var_routing_instances_instance {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Name = v_routing_instances_instance.Name.ValueStringPointer()
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Instance_type = v_routing_instances_instance.Instance_type.ValueStringPointer()
+            var var_routing_instances_instance_interface []Routing_instances_Instance_Interface_Model
+            resp.Diagnostics.Append(v_routing_instances_instance.Interface.ElementsAs(ctx, &var_routing_instances_instance_interface, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Interface = make([]xml_Routing_instances_Instance_Interface, len(var_routing_instances_instance_interface))
+        
+		for i_routing_instances_instance_interface, v_routing_instances_instance_interface := range var_routing_instances_instance_interface {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Interface[i_routing_instances_instance_interface].Name = v_routing_instances_instance_interface.Name.ValueStringPointer()
+        }
+            var var_routing_instances_instance_route_distinguisher []Routing_instances_Instance_Route_distinguisher_Model
+            resp.Diagnostics.Append(v_routing_instances_instance.Route_distinguisher.ElementsAs(ctx, &var_routing_instances_instance_route_distinguisher, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Route_distinguisher = make([]xml_Routing_instances_Instance_Route_distinguisher, len(var_routing_instances_instance_route_distinguisher))
+        
+		for i_routing_instances_instance_route_distinguisher, v_routing_instances_instance_route_distinguisher := range var_routing_instances_instance_route_distinguisher {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Route_distinguisher[i_routing_instances_instance_route_distinguisher].Rd_type = v_routing_instances_instance_route_distinguisher.Rd_type.ValueStringPointer()
+        }
+            var var_routing_instances_instance_vrf_target []Routing_instances_Instance_Vrf_target_Model
+            resp.Diagnostics.Append(v_routing_instances_instance.Vrf_target.ElementsAs(ctx, &var_routing_instances_instance_vrf_target, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Vrf_target = make([]xml_Routing_instances_Instance_Vrf_target, len(var_routing_instances_instance_vrf_target))
+        
+		for i_routing_instances_instance_vrf_target, v_routing_instances_instance_vrf_target := range var_routing_instances_instance_vrf_target {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Vrf_target[i_routing_instances_instance_vrf_target].Community = v_routing_instances_instance_vrf_target.Community.ValueStringPointer()
+        }
+            var var_routing_instances_instance_vrf_table_label []Routing_instances_Instance_Vrf_table_label_Model
+            resp.Diagnostics.Append(v_routing_instances_instance.Vrf_table_label.ElementsAs(ctx, &var_routing_instances_instance_vrf_table_label, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Vrf_table_label = make([]xml_Routing_instances_Instance_Vrf_table_label, len(var_routing_instances_instance_vrf_table_label))
+        
+            var var_routing_instances_instance_routing_options []Routing_instances_Instance_Routing_options_Model
+            resp.Diagnostics.Append(v_routing_instances_instance.Routing_options.ElementsAs(ctx, &var_routing_instances_instance_routing_options, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Routing_options = make([]xml_Routing_instances_Instance_Routing_options, len(var_routing_instances_instance_routing_options))
+        
+		for i_routing_instances_instance_routing_options, v_routing_instances_instance_routing_options := range var_routing_instances_instance_routing_options {
+            var var_routing_instances_instance_routing_options_auto_export []Routing_instances_Instance_Routing_options_Auto_export_Model
+            resp.Diagnostics.Append(v_routing_instances_instance_routing_options.Auto_export.ElementsAs(ctx, &var_routing_instances_instance_routing_options_auto_export, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Routing_options[i_routing_instances_instance_routing_options].Auto_export = make([]xml_Routing_instances_Instance_Routing_options_Auto_export, len(var_routing_instances_instance_routing_options_auto_export))
+        
+        }
+            var var_routing_instances_instance_protocols []Routing_instances_Instance_Protocols_Model
+            resp.Diagnostics.Append(v_routing_instances_instance.Protocols.ElementsAs(ctx, &var_routing_instances_instance_protocols, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols = make([]xml_Routing_instances_Instance_Protocols, len(var_routing_instances_instance_protocols))
+        
+		for i_routing_instances_instance_protocols, v_routing_instances_instance_protocols := range var_routing_instances_instance_protocols {
+            var var_routing_instances_instance_protocols_ospf []Routing_instances_Instance_Protocols_Ospf_Model
+            resp.Diagnostics.Append(v_routing_instances_instance_protocols.Ospf.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf = make([]xml_Routing_instances_Instance_Protocols_Ospf, len(var_routing_instances_instance_protocols_ospf))
+        
+		for i_routing_instances_instance_protocols_ospf, v_routing_instances_instance_protocols_ospf := range var_routing_instances_instance_protocols_ospf {
+			var var_routing_instances_instance_protocols_ospf_export []string
+			resp.Diagnostics.Append(v_routing_instances_instance_protocols_ospf.Export.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf_export, false)...)
+			for _, v_routing_instances_instance_protocols_ospf_export := range var_routing_instances_instance_protocols_ospf_export {
+				config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Export = append(config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Export, &v_routing_instances_instance_protocols_ospf_export)
+			}
+            var var_routing_instances_instance_protocols_ospf_area []Routing_instances_Instance_Protocols_Ospf_Area_Model
+            resp.Diagnostics.Append(v_routing_instances_instance_protocols_ospf.Area.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf_area, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area = make([]xml_Routing_instances_Instance_Protocols_Ospf_Area, len(var_routing_instances_instance_protocols_ospf_area))
+        
+		for i_routing_instances_instance_protocols_ospf_area, v_routing_instances_instance_protocols_ospf_area := range var_routing_instances_instance_protocols_ospf_area {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Name = v_routing_instances_instance_protocols_ospf_area.Name.ValueStringPointer()
+            var var_routing_instances_instance_protocols_ospf_area_interface []Routing_instances_Instance_Protocols_Ospf_Area_Interface_Model
+            resp.Diagnostics.Append(v_routing_instances_instance_protocols_ospf_area.Interface.ElementsAs(ctx, &var_routing_instances_instance_protocols_ospf_area_interface, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Interface = make([]xml_Routing_instances_Instance_Protocols_Ospf_Area_Interface, len(var_routing_instances_instance_protocols_ospf_area_interface))
+        
+		for i_routing_instances_instance_protocols_ospf_area_interface, v_routing_instances_instance_protocols_ospf_area_interface := range var_routing_instances_instance_protocols_ospf_area_interface {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Interface[i_routing_instances_instance_protocols_ospf_area_interface].Name = v_routing_instances_instance_protocols_ospf_area_interface.Name.ValueStringPointer()
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Ospf[i_routing_instances_instance_protocols_ospf].Area[i_routing_instances_instance_protocols_ospf_area].Interface[i_routing_instances_instance_protocols_ospf_area_interface].Metric = v_routing_instances_instance_protocols_ospf_area_interface.Metric.ValueStringPointer()
+        }
+        }
+        }
+            var var_routing_instances_instance_protocols_evpn []Routing_instances_Instance_Protocols_Evpn_Model
+            resp.Diagnostics.Append(v_routing_instances_instance_protocols.Evpn.ElementsAs(ctx, &var_routing_instances_instance_protocols_evpn, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn = make([]xml_Routing_instances_Instance_Protocols_Evpn, len(var_routing_instances_instance_protocols_evpn))
+        
+		for i_routing_instances_instance_protocols_evpn, v_routing_instances_instance_protocols_evpn := range var_routing_instances_instance_protocols_evpn {
+            var var_routing_instances_instance_protocols_evpn_ip_prefix_routes []Routing_instances_Instance_Protocols_Evpn_Ip_prefix_routes_Model
+            resp.Diagnostics.Append(v_routing_instances_instance_protocols_evpn.Ip_prefix_routes.ElementsAs(ctx, &var_routing_instances_instance_protocols_evpn_ip_prefix_routes, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes = make([]xml_Routing_instances_Instance_Protocols_Evpn_Ip_prefix_routes, len(var_routing_instances_instance_protocols_evpn_ip_prefix_routes))
+        
+		for i_routing_instances_instance_protocols_evpn_ip_prefix_routes, v_routing_instances_instance_protocols_evpn_ip_prefix_routes := range var_routing_instances_instance_protocols_evpn_ip_prefix_routes {
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Advertise = v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Advertise.ValueStringPointer()
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Encapsulation = v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Encapsulation.ValueStringPointer()
+            config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Vni = v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Vni.ValueStringPointer()
+			var var_routing_instances_instance_protocols_evpn_ip_prefix_routes_export []string
+			resp.Diagnostics.Append(v_routing_instances_instance_protocols_evpn_ip_prefix_routes.Export.ElementsAs(ctx, &var_routing_instances_instance_protocols_evpn_ip_prefix_routes_export, false)...)
+			for _, v_routing_instances_instance_protocols_evpn_ip_prefix_routes_export := range var_routing_instances_instance_protocols_evpn_ip_prefix_routes_export {
+				config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Export = append(config.Groups.Routing_instances[i_routing_instances].Instance[i_routing_instances_instance].Protocols[i_routing_instances_instance_protocols].Evpn[i_routing_instances_instance_protocols_evpn].Ip_prefix_routes[i_routing_instances_instance_protocols_evpn_ip_prefix_routes].Export, &v_routing_instances_instance_protocols_evpn_ip_prefix_routes_export)
+			}
+        }
+        }
+        }
+        }
+		}
+		
+		var var_routing_options []Routing_options_Model
+		if plan.Routing_options.IsNull() {
+			var_routing_options = []Routing_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Routing_options.ElementsAs(ctx, &var_routing_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Routing_options = make([]xml_Routing_options, len(var_routing_options))
+		
+		for i_routing_options, v_routing_options := range var_routing_options {
+			var var_routing_options_static []Routing_options_Static_Model
+			resp.Diagnostics.Append(v_routing_options.Static.ElementsAs(ctx, &var_routing_options_static, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Routing_options[i_routing_options].Static = make([]xml_Routing_options_Static, len(var_routing_options_static))
+        
+		for i_routing_options_static, v_routing_options_static := range var_routing_options_static {
+            var var_routing_options_static_route []Routing_options_Static_Route_Model
+            resp.Diagnostics.Append(v_routing_options_static.Route.ElementsAs(ctx, &var_routing_options_static_route, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route = make([]xml_Routing_options_Static_Route, len(var_routing_options_static_route))
+        
+		for i_routing_options_static_route, v_routing_options_static_route := range var_routing_options_static_route {
+            config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route[i_routing_options_static_route].Name = v_routing_options_static_route.Name.ValueStringPointer()
+			var var_routing_options_static_route_next_hop []string
+			resp.Diagnostics.Append(v_routing_options_static_route.Next_hop.ElementsAs(ctx, &var_routing_options_static_route_next_hop, false)...)
+			for _, v_routing_options_static_route_next_hop := range var_routing_options_static_route_next_hop {
+				config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route[i_routing_options_static_route].Next_hop = append(config.Groups.Routing_options[i_routing_options].Static[i_routing_options_static].Route[i_routing_options_static_route].Next_hop, &v_routing_options_static_route_next_hop)
+			}
+        }
+        }
+			config.Groups.Routing_options[i_routing_options].Router_id = v_routing_options.Router_id.ValueStringPointer()
+			var var_routing_options_forwarding_table []Routing_options_Forwarding_table_Model
+			resp.Diagnostics.Append(v_routing_options.Forwarding_table.ElementsAs(ctx, &var_routing_options_forwarding_table, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Routing_options[i_routing_options].Forwarding_table = make([]xml_Routing_options_Forwarding_table, len(var_routing_options_forwarding_table))
+        
+		for i_routing_options_forwarding_table, v_routing_options_forwarding_table := range var_routing_options_forwarding_table {
+			var var_routing_options_forwarding_table_export []string
+			resp.Diagnostics.Append(v_routing_options_forwarding_table.Export.ElementsAs(ctx, &var_routing_options_forwarding_table_export, false)...)
+			for _, v_routing_options_forwarding_table_export := range var_routing_options_forwarding_table_export {
+				config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Export = append(config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Export, &v_routing_options_forwarding_table_export)
+			}
+            config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Ecmp_fast_reroute = v_routing_options_forwarding_table.Ecmp_fast_reroute.ValueStringPointer()
+            var var_routing_options_forwarding_table_chained_composite_next_hop []Routing_options_Forwarding_table_Chained_composite_next_hop_Model
+            resp.Diagnostics.Append(v_routing_options_forwarding_table.Chained_composite_next_hop.ElementsAs(ctx, &var_routing_options_forwarding_table_chained_composite_next_hop, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Chained_composite_next_hop = make([]xml_Routing_options_Forwarding_table_Chained_composite_next_hop, len(var_routing_options_forwarding_table_chained_composite_next_hop))
+        
+		for i_routing_options_forwarding_table_chained_composite_next_hop, v_routing_options_forwarding_table_chained_composite_next_hop := range var_routing_options_forwarding_table_chained_composite_next_hop {
+            var var_routing_options_forwarding_table_chained_composite_next_hop_ingress []Routing_options_Forwarding_table_Chained_composite_next_hop_Ingress_Model
+            resp.Diagnostics.Append(v_routing_options_forwarding_table_chained_composite_next_hop.Ingress.ElementsAs(ctx, &var_routing_options_forwarding_table_chained_composite_next_hop_ingress, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Chained_composite_next_hop[i_routing_options_forwarding_table_chained_composite_next_hop].Ingress = make([]xml_Routing_options_Forwarding_table_Chained_composite_next_hop_Ingress, len(var_routing_options_forwarding_table_chained_composite_next_hop_ingress))
+        
+		for i_routing_options_forwarding_table_chained_composite_next_hop_ingress, v_routing_options_forwarding_table_chained_composite_next_hop_ingress := range var_routing_options_forwarding_table_chained_composite_next_hop_ingress {
+            config.Groups.Routing_options[i_routing_options].Forwarding_table[i_routing_options_forwarding_table].Chained_composite_next_hop[i_routing_options_forwarding_table_chained_composite_next_hop].Ingress[i_routing_options_forwarding_table_chained_composite_next_hop_ingress].Evpn = v_routing_options_forwarding_table_chained_composite_next_hop_ingress.Evpn.ValueStringPointer()
+        }
+        }
+        }
+		}
+		
+		var var_snmp []Snmp_Model
+		if plan.Snmp.IsNull() {
+			var_snmp = []Snmp_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Snmp.ElementsAs(ctx, &var_snmp, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Snmp = make([]xml_Snmp, len(var_snmp))
+		
+		for i_snmp, v_snmp := range var_snmp {
+			config.Groups.Snmp[i_snmp].Location = v_snmp.Location.ValueStringPointer()
+			config.Groups.Snmp[i_snmp].Contact = v_snmp.Contact.ValueStringPointer()
+			var var_snmp_community []Snmp_Community_Model
+			resp.Diagnostics.Append(v_snmp.Community.ElementsAs(ctx, &var_snmp_community, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Snmp[i_snmp].Community = make([]xml_Snmp_Community, len(var_snmp_community))
+        
+		for i_snmp_community, v_snmp_community := range var_snmp_community {
+            config.Groups.Snmp[i_snmp].Community[i_snmp_community].Name = v_snmp_community.Name.ValueStringPointer()
+            config.Groups.Snmp[i_snmp].Community[i_snmp_community].Authorization = v_snmp_community.Authorization.ValueStringPointer()
+        }
+		}
+		
+		var var_switch_options []Switch_options_Model
+		if plan.Switch_options.IsNull() {
+			var_switch_options = []Switch_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Switch_options.ElementsAs(ctx, &var_switch_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Switch_options = make([]xml_Switch_options, len(var_switch_options))
+		
+		for i_switch_options, v_switch_options := range var_switch_options {
+			var var_switch_options_vtep_source_interface []Switch_options_Vtep_source_interface_Model
+			resp.Diagnostics.Append(v_switch_options.Vtep_source_interface.ElementsAs(ctx, &var_switch_options_vtep_source_interface, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Switch_options[i_switch_options].Vtep_source_interface = make([]xml_Switch_options_Vtep_source_interface, len(var_switch_options_vtep_source_interface))
+        
+		for i_switch_options_vtep_source_interface, v_switch_options_vtep_source_interface := range var_switch_options_vtep_source_interface {
+            config.Groups.Switch_options[i_switch_options].Vtep_source_interface[i_switch_options_vtep_source_interface].Interface_name = v_switch_options_vtep_source_interface.Interface_name.ValueStringPointer()
+        }
+			var var_switch_options_route_distinguisher []Switch_options_Route_distinguisher_Model
+			resp.Diagnostics.Append(v_switch_options.Route_distinguisher.ElementsAs(ctx, &var_switch_options_route_distinguisher, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Switch_options[i_switch_options].Route_distinguisher = make([]xml_Switch_options_Route_distinguisher, len(var_switch_options_route_distinguisher))
+        
+		for i_switch_options_route_distinguisher, v_switch_options_route_distinguisher := range var_switch_options_route_distinguisher {
+            config.Groups.Switch_options[i_switch_options].Route_distinguisher[i_switch_options_route_distinguisher].Rd_type = v_switch_options_route_distinguisher.Rd_type.ValueStringPointer()
+        }
+			var var_switch_options_vrf_target []Switch_options_Vrf_target_Model
+			resp.Diagnostics.Append(v_switch_options.Vrf_target.ElementsAs(ctx, &var_switch_options_vrf_target, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Switch_options[i_switch_options].Vrf_target = make([]xml_Switch_options_Vrf_target, len(var_switch_options_vrf_target))
+        
+		for i_switch_options_vrf_target, v_switch_options_vrf_target := range var_switch_options_vrf_target {
+            config.Groups.Switch_options[i_switch_options].Vrf_target[i_switch_options_vrf_target].Community = v_switch_options_vrf_target.Community.ValueStringPointer()
+            var var_switch_options_vrf_target_auto []Switch_options_Vrf_target_Auto_Model
+            resp.Diagnostics.Append(v_switch_options_vrf_target.Auto.ElementsAs(ctx, &var_switch_options_vrf_target_auto, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Switch_options[i_switch_options].Vrf_target[i_switch_options_vrf_target].Auto = make([]xml_Switch_options_Vrf_target_Auto, len(var_switch_options_vrf_target_auto))
+        
+        }
+		}
+		
+		var var_system []System_Model
+		if plan.System.IsNull() {
+			var_system = []System_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.System.ElementsAs(ctx, &var_system, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.System = make([]xml_System, len(var_system))
+		
+		for i_system, v_system := range var_system {
+			var var_system_login []System_Login_Model
+			resp.Diagnostics.Append(v_system.Login.ElementsAs(ctx, &var_system_login, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.System[i_system].Login = make([]xml_System_Login, len(var_system_login))
+        
+		for i_system_login, v_system_login := range var_system_login {
+            var var_system_login_user []System_Login_User_Model
+            resp.Diagnostics.Append(v_system_login.User.ElementsAs(ctx, &var_system_login_user, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Login[i_system_login].User = make([]xml_System_Login_User, len(var_system_login_user))
+        
+		for i_system_login_user, v_system_login_user := range var_system_login_user {
+            config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Name = v_system_login_user.Name.ValueStringPointer()
+            config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Uid = v_system_login_user.Uid.ValueStringPointer()
+            config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Class = v_system_login_user.Class.ValueStringPointer()
+            var var_system_login_user_authentication []System_Login_User_Authentication_Model
+            resp.Diagnostics.Append(v_system_login_user.Authentication.ElementsAs(ctx, &var_system_login_user_authentication, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Authentication = make([]xml_System_Login_User_Authentication, len(var_system_login_user_authentication))
+        
+		for i_system_login_user_authentication, v_system_login_user_authentication := range var_system_login_user_authentication {
+            config.Groups.System[i_system].Login[i_system_login].User[i_system_login_user].Authentication[i_system_login_user_authentication].Encrypted_password = v_system_login_user_authentication.Encrypted_password.ValueStringPointer()
+        }
+        }
+            config.Groups.System[i_system].Login[i_system_login].Message = v_system_login.Message.ValueStringPointer()
+        }
+			var var_system_root_authentication []System_Root_authentication_Model
+			resp.Diagnostics.Append(v_system.Root_authentication.ElementsAs(ctx, &var_system_root_authentication, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.System[i_system].Root_authentication = make([]xml_System_Root_authentication, len(var_system_root_authentication))
+        
+		for i_system_root_authentication, v_system_root_authentication := range var_system_root_authentication {
+            config.Groups.System[i_system].Root_authentication[i_system_root_authentication].Encrypted_password = v_system_root_authentication.Encrypted_password.ValueStringPointer()
+        }
+			config.Groups.System[i_system].Host_name = v_system.Host_name.ValueStringPointer()
+			var var_system_services []System_Services_Model
+			resp.Diagnostics.Append(v_system.Services.ElementsAs(ctx, &var_system_services, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.System[i_system].Services = make([]xml_System_Services, len(var_system_services))
+        
+		for i_system_services, v_system_services := range var_system_services {
+            var var_system_services_ssh []System_Services_Ssh_Model
+            resp.Diagnostics.Append(v_system_services.Ssh.ElementsAs(ctx, &var_system_services_ssh, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Ssh = make([]xml_System_Services_Ssh, len(var_system_services_ssh))
+        
+		for i_system_services_ssh, v_system_services_ssh := range var_system_services_ssh {
+            config.Groups.System[i_system].Services[i_system_services].Ssh[i_system_services_ssh].Root_login = v_system_services_ssh.Root_login.ValueStringPointer()
+        }
+            var var_system_services_extension_service []System_Services_Extension_service_Model
+            resp.Diagnostics.Append(v_system_services.Extension_service.ElementsAs(ctx, &var_system_services_extension_service, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Extension_service = make([]xml_System_Services_Extension_service, len(var_system_services_extension_service))
+        
+		for i_system_services_extension_service, v_system_services_extension_service := range var_system_services_extension_service {
+            var var_system_services_extension_service_request_response []System_Services_Extension_service_Request_response_Model
+            resp.Diagnostics.Append(v_system_services_extension_service.Request_response.ElementsAs(ctx, &var_system_services_extension_service_request_response, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Request_response = make([]xml_System_Services_Extension_service_Request_response, len(var_system_services_extension_service_request_response))
+        
+		for i_system_services_extension_service_request_response, v_system_services_extension_service_request_response := range var_system_services_extension_service_request_response {
+            var var_system_services_extension_service_request_response_grpc []System_Services_Extension_service_Request_response_Grpc_Model
+            resp.Diagnostics.Append(v_system_services_extension_service_request_response.Grpc.ElementsAs(ctx, &var_system_services_extension_service_request_response_grpc, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Request_response[i_system_services_extension_service_request_response].Grpc = make([]xml_System_Services_Extension_service_Request_response_Grpc, len(var_system_services_extension_service_request_response_grpc))
+        
+		for i_system_services_extension_service_request_response_grpc, v_system_services_extension_service_request_response_grpc := range var_system_services_extension_service_request_response_grpc {
+            config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Request_response[i_system_services_extension_service_request_response].Grpc[i_system_services_extension_service_request_response_grpc].Max_connections = v_system_services_extension_service_request_response_grpc.Max_connections.ValueStringPointer()
+        }
+        }
+            var var_system_services_extension_service_notification []System_Services_Extension_service_Notification_Model
+            resp.Diagnostics.Append(v_system_services_extension_service.Notification.ElementsAs(ctx, &var_system_services_extension_service_notification, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification = make([]xml_System_Services_Extension_service_Notification, len(var_system_services_extension_service_notification))
+        
+		for i_system_services_extension_service_notification, v_system_services_extension_service_notification := range var_system_services_extension_service_notification {
+            var var_system_services_extension_service_notification_allow_clients []System_Services_Extension_service_Notification_Allow_clients_Model
+            resp.Diagnostics.Append(v_system_services_extension_service_notification.Allow_clients.ElementsAs(ctx, &var_system_services_extension_service_notification_allow_clients, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification[i_system_services_extension_service_notification].Allow_clients = make([]xml_System_Services_Extension_service_Notification_Allow_clients, len(var_system_services_extension_service_notification_allow_clients))
+        
+		for i_system_services_extension_service_notification_allow_clients, v_system_services_extension_service_notification_allow_clients := range var_system_services_extension_service_notification_allow_clients {
+			var var_system_services_extension_service_notification_allow_clients_address []string
+			resp.Diagnostics.Append(v_system_services_extension_service_notification_allow_clients.Address.ElementsAs(ctx, &var_system_services_extension_service_notification_allow_clients_address, false)...)
+			for _, v_system_services_extension_service_notification_allow_clients_address := range var_system_services_extension_service_notification_allow_clients_address {
+				config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification[i_system_services_extension_service_notification].Allow_clients[i_system_services_extension_service_notification_allow_clients].Address = append(config.Groups.System[i_system].Services[i_system_services].Extension_service[i_system_services_extension_service].Notification[i_system_services_extension_service_notification].Allow_clients[i_system_services_extension_service_notification_allow_clients].Address, &v_system_services_extension_service_notification_allow_clients_address)
+			}
+        }
+        }
+        }
+            var var_system_services_netconf []System_Services_Netconf_Model
+            resp.Diagnostics.Append(v_system_services.Netconf.ElementsAs(ctx, &var_system_services_netconf, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Netconf = make([]xml_System_Services_Netconf, len(var_system_services_netconf))
+        
+		for i_system_services_netconf, v_system_services_netconf := range var_system_services_netconf {
+            var var_system_services_netconf_ssh []System_Services_Netconf_Ssh_Model
+            resp.Diagnostics.Append(v_system_services_netconf.Ssh.ElementsAs(ctx, &var_system_services_netconf_ssh, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Netconf[i_system_services_netconf].Ssh = make([]xml_System_Services_Netconf_Ssh, len(var_system_services_netconf_ssh))
+        
+        }
+            var var_system_services_rest []System_Services_Rest_Model
+            resp.Diagnostics.Append(v_system_services.Rest.ElementsAs(ctx, &var_system_services_rest, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Rest = make([]xml_System_Services_Rest, len(var_system_services_rest))
+        
+		for i_system_services_rest, v_system_services_rest := range var_system_services_rest {
+            var var_system_services_rest_http []System_Services_Rest_Http_Model
+            resp.Diagnostics.Append(v_system_services_rest.Http.ElementsAs(ctx, &var_system_services_rest_http, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Http = make([]xml_System_Services_Rest_Http, len(var_system_services_rest_http))
+        
+		for i_system_services_rest_http, v_system_services_rest_http := range var_system_services_rest_http {
+            config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Http[i_system_services_rest_http].Port = v_system_services_rest_http.Port.ValueStringPointer()
+        }
+            config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Enable_explorer = v_system_services_rest.Enable_explorer.ValueStringPointer()
+        }
+        }
+			var var_system_syslog []System_Syslog_Model
+			resp.Diagnostics.Append(v_system.Syslog.ElementsAs(ctx, &var_system_syslog, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.System[i_system].Syslog = make([]xml_System_Syslog, len(var_system_syslog))
+        
+		for i_system_syslog, v_system_syslog := range var_system_syslog {
+            var var_system_syslog_user []System_Syslog_User_Model
+            resp.Diagnostics.Append(v_system_syslog.User.ElementsAs(ctx, &var_system_syslog_user, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Syslog[i_system_syslog].User = make([]xml_System_Syslog_User, len(var_system_syslog_user))
+        
+		for i_system_syslog_user, v_system_syslog_user := range var_system_syslog_user {
+            config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Name = v_system_syslog_user.Name.ValueStringPointer()
+            var var_system_syslog_user_contents []System_Syslog_User_Contents_Model
+            resp.Diagnostics.Append(v_system_syslog_user.Contents.ElementsAs(ctx, &var_system_syslog_user_contents, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Contents = make([]xml_System_Syslog_User_Contents, len(var_system_syslog_user_contents))
+        
+		for i_system_syslog_user_contents, v_system_syslog_user_contents := range var_system_syslog_user_contents {
+            config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Contents[i_system_syslog_user_contents].Name = v_system_syslog_user_contents.Name.ValueStringPointer()
+            config.Groups.System[i_system].Syslog[i_system_syslog].User[i_system_syslog_user].Contents[i_system_syslog_user_contents].Emergency = v_system_syslog_user_contents.Emergency.ValueStringPointer()
+        }
+        }
+            var var_system_syslog_file []System_Syslog_File_Model
+            resp.Diagnostics.Append(v_system_syslog.File.ElementsAs(ctx, &var_system_syslog_file, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Syslog[i_system_syslog].File = make([]xml_System_Syslog_File, len(var_system_syslog_file))
+        
+		for i_system_syslog_file, v_system_syslog_file := range var_system_syslog_file {
+            config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Name = v_system_syslog_file.Name.ValueStringPointer()
+            var var_system_syslog_file_contents []System_Syslog_File_Contents_Model
+            resp.Diagnostics.Append(v_system_syslog_file.Contents.ElementsAs(ctx, &var_system_syslog_file_contents, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents = make([]xml_System_Syslog_File_Contents, len(var_system_syslog_file_contents))
+        
+		for i_system_syslog_file_contents, v_system_syslog_file_contents := range var_system_syslog_file_contents {
+            config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Name = v_system_syslog_file_contents.Name.ValueStringPointer()
+            config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Any = v_system_syslog_file_contents.Any.ValueStringPointer()
+            config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Notice = v_system_syslog_file_contents.Notice.ValueStringPointer()
+            config.Groups.System[i_system].Syslog[i_system_syslog].File[i_system_syslog_file].Contents[i_system_syslog_file_contents].Info = v_system_syslog_file_contents.Info.ValueStringPointer()
+        }
+        }
+        }
+			var var_system_extensions []System_Extensions_Model
+			resp.Diagnostics.Append(v_system.Extensions.ElementsAs(ctx, &var_system_extensions, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.System[i_system].Extensions = make([]xml_System_Extensions, len(var_system_extensions))
+        
+		for i_system_extensions, v_system_extensions := range var_system_extensions {
+            var var_system_extensions_providers []System_Extensions_Providers_Model
+            resp.Diagnostics.Append(v_system_extensions.Providers.ElementsAs(ctx, &var_system_extensions_providers, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Extensions[i_system_extensions].Providers = make([]xml_System_Extensions_Providers, len(var_system_extensions_providers))
+        
+		for i_system_extensions_providers, v_system_extensions_providers := range var_system_extensions_providers {
+            config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].Name = v_system_extensions_providers.Name.ValueStringPointer()
+            var var_system_extensions_providers_license_type []System_Extensions_Providers_License_type_Model
+            resp.Diagnostics.Append(v_system_extensions_providers.License_type.ElementsAs(ctx, &var_system_extensions_providers_license_type, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type = make([]xml_System_Extensions_Providers_License_type, len(var_system_extensions_providers_license_type))
+        
+		for i_system_extensions_providers_license_type, v_system_extensions_providers_license_type := range var_system_extensions_providers_license_type {
+            config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type[i_system_extensions_providers_license_type].Name = v_system_extensions_providers_license_type.Name.ValueStringPointer()
+			var var_system_extensions_providers_license_type_deployment_scope []string
+			resp.Diagnostics.Append(v_system_extensions_providers_license_type.Deployment_scope.ElementsAs(ctx, &var_system_extensions_providers_license_type_deployment_scope, false)...)
+			for _, v_system_extensions_providers_license_type_deployment_scope := range var_system_extensions_providers_license_type_deployment_scope {
+				config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type[i_system_extensions_providers_license_type].Deployment_scope = append(config.Groups.System[i_system].Extensions[i_system_extensions].Providers[i_system_extensions_providers].License_type[i_system_extensions_providers_license_type].Deployment_scope, &v_system_extensions_providers_license_type_deployment_scope)
+			}
+        }
+        }
+        }
+		}
+		
+		var var_vlans []Vlans_Model
+		if plan.Vlans.IsNull() {
+			var_vlans = []Vlans_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Vlans.ElementsAs(ctx, &var_vlans, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Vlans = make([]xml_Vlans, len(var_vlans))
+		
+		for i_vlans, v_vlans := range var_vlans {
+			var var_vlans_vlan []Vlans_Vlan_Model
+			resp.Diagnostics.Append(v_vlans.Vlan.ElementsAs(ctx, &var_vlans_vlan, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+	    config.Groups.Vlans[i_vlans].Vlan = make([]xml_Vlans_Vlan, len(var_vlans_vlan))
+        
+		for i_vlans_vlan, v_vlans_vlan := range var_vlans_vlan {
+            config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Name = v_vlans_vlan.Name.ValueStringPointer()
+            config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vlan_id = v_vlans_vlan.Vlan_id.ValueStringPointer()
+            config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].L3_interface = v_vlans_vlan.L3_interface.ValueStringPointer()
+            var var_vlans_vlan_vxlan []Vlans_Vlan_Vxlan_Model
+            resp.Diagnostics.Append(v_vlans_vlan.Vxlan.ElementsAs(ctx, &var_vlans_vlan_vxlan, false)...)
+            if resp.Diagnostics.HasError() {
+                return
+            }
+	    config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vxlan = make([]xml_Vlans_Vlan_Vxlan, len(var_vlans_vlan_vxlan))
+        
+		for i_vlans_vlan_vxlan, v_vlans_vlan_vxlan := range var_vlans_vlan_vxlan {
+            config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vxlan[i_vlans_vlan_vxlan].Vni = v_vlans_vlan_vxlan.Vni.ValueStringPointer()
+        }
+        }
+		}
+		
+		return config
     }
 
-    // Build configs
+	// Build configs
 	var plan_config xml_Configuration
 	plan_config = BuildXMLConfig(plan)
 	if plan_config.Groups.Name == nil || *plan_config.Groups.Name == "" {
@@ -9382,7 +9385,6 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
     name := plan.ResourceName.ValueString()
 
-    // Write changes to file
     diff, err := createDiffPatch(changes, name)
 
 	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)

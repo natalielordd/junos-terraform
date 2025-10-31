@@ -262,6 +262,7 @@ func sortApplyGroupsList() {
 	applyGroupsList = filteredGroups
 }
 
+// SendUpdate is a method that applies an xml patch
 func (g *GoNCClient) SendUpdate(id string, diff string, commit bool) error {
 	g.Lock.Lock()
 	defer g.Lock.Unlock()

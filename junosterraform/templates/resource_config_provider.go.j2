@@ -950,7 +950,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
     diff, err := createDiffPatch(changes, name)
 
-	err = r.client.SendTransaction(plan.ResourceName.ValueString(), diff, false)
+	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())
 		return

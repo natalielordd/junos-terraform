@@ -286,14 +286,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/polydawn/refmt v0.89.1-0.20221221234430-40501e09de1f // indirect
-	github.com/pschlump/MiscLib v1.0.7 // indirect
-	github.com/pschlump/ansi v1.0.6 // indirect
-	github.com/pschlump/dbgo v1.0.6 // indirect
-	github.com/pschlump/filelib v1.0.6 // indirect
-	github.com/pschlump/go-colorable v0.0.22 // indirect
-	github.com/pschlump/go-isatty v0.0.22 // indirect
-	github.com/pschlump/json v1.12.0 // indirect
-	github.com/pschlump/xml-diff v0.0.5 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.10.0 // indirect
