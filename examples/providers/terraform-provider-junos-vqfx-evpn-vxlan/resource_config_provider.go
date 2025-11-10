@@ -8059,26 +8059,7 @@ func segmentWithSiblingIndex(n *Node) string {
 		return fmt.Sprintf("%s[name=%q]", n.Name, v)
 	}
 
-	// No <name> child. If there's no parent, just return the tag.
-	if n.Parent == nil {
-		return n.Name
-	}
-
-	// Walk older siblings to figure out which occurrence this is.
-	idx := 0
-	for _, sib := range n.Parent.Children {
-		if sib !=n && sib.Name == n.Name {
-			if _, has := childNameValue(sib); !has {
-				idx++
-			}
-		}
-	}
-
-	if idx == 0 {
-		return n.Name
-	}
-
-	return fmt.Sprintf("%s#%d", n.Name, idx)
+	return n.Name
 }
 
 // childNameValue finds an immediate <name> childs text.
@@ -8117,9 +8098,27 @@ func ensurePath(root *PatchNode, segs []string) *PatchNode {
 	cur := root
 	for _, s := range segs {
 		name := s
-        if i := strings.IndexByte(s, '#'); i >= 0 {
-			name = s[:i]
-		}
+        if i := strings.IndexByte(s, '['); i >= 0 {
+            name = s[:i]
+
+            // Get ID value 
+            start := strings.IndexByte(s, '"')
+            end := strings.LastIndexByte(s, '"')
+            
+            var val string
+            if start >= 0 && end > start {
+                val = s[start+1 : end]
+            }
+
+            // Make the <name> node
+            nameNode := &PatchNode{
+                XMLName: xml.Name{Local: "name"},
+                Text:  val,
+            }
+            // Prepend it to n.Children
+            cur.Children = append([]*PatchNode{nameNode}, cur.Children...)
+        }
+
 		var child *PatchNode
 		for _, c := range cur.Children {
 			if c.XMLName.Local == name {
@@ -8165,7 +8164,7 @@ func createDiffPatch(changes map[string]struct {
 		}
 	}
 
-    insertGroupName(root, group)
+    // insertGroupName(root, group)
 
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
@@ -8181,6 +8180,7 @@ func createDiffPatch(changes map[string]struct {
 	return diff, nil
 }
 
+/*
 // Finds <groups> nodes under the given PatchNode and injects a <name>...</name> node as the first child.
 func insertGroupName(n *PatchNode, group string) {
 	if n.XMLName.Local == "groups" {
@@ -8197,6 +8197,7 @@ func insertGroupName(n *PatchNode, group string) {
 		insertGroupName(c, group)
 	}
 }
+*/
 
 // Update implements resource.Resource.
 func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
