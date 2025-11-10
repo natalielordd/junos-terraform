@@ -7984,6 +7984,7 @@ func BuildTree(xmlBytes []byte) (*Node, error) {
 				root = n
 			} else {
 				parent := stack[len(stack)-1]
+                n.Parent = parent
 				parent.Children = append(parent.Children, n)
 			}
 			stack = append(stack, n)
@@ -8059,6 +8060,25 @@ func segmentWithSiblingIndex(n *Node) string {
 		return fmt.Sprintf("%s[name=%q]", n.Name, v)
 	}
 
+	// Otherwise, compute the 1-based occurrence among unnamed siblings of the same tag.
+	occ := 1
+	if n.Parent != nil {
+		for _, sib := range n.Parent.Children {
+			if sib == n {
+				break // only count older siblings
+			} else {
+				// Only count siblings that ALSO lack a <name> child (same unkeyed category).
+				if _, has := childNameValue(sib); !has {
+					occ++
+				}
+			}
+		}
+	}
+
+	// First occurrence: no suffix. Subsequent: #2, #3, ...
+	if occ > 1 {
+		return fmt.Sprintf("%s#%d", n.Name, occ)
+	}
 	return n.Name
 }
 
@@ -8097,18 +8117,21 @@ type PatchNode struct {
 func ensurePath(root *PatchNode, segs []string) *PatchNode {
 	cur := root
 	for _, s := range segs {
-		// Parse name and optional id value
+		// Parse name and optional key value
         name := s
-        var id string
+        var key string
+        if i := strings.IndexByte(s, '#'); i >= 0 {
+            name = s[:i]
+        }
         if i := strings.IndexByte(s, '['); i >= 0 {
             name = s[:i]
-            // Extract value between quotes in [id="..."]
+            // Extract value between quotes in [name="..."]
             start := strings.IndexByte(s[i:], '"')
             end := strings.LastIndexByte(s, '"')
             if start >= 0 && end > i+start {
                 // adjust start to absolute index
                 start = i + start
-                id = s[start+1 : end]
+                key = s[start+1 : end]
             }
         }
 
@@ -8125,8 +8148,8 @@ func ensurePath(root *PatchNode, segs []string) *PatchNode {
             cur.Children = append(cur.Children, child)
         }
 
-        // If we have a [id="..."], ensure the child has a <id> first-child
-        if id != "" {
+        // If we have a [name="..."], ensure the child has a <name> first-child
+        if key != "" {
             hasName := false
             for _, c := range child.Children {
                 if c.XMLName.Local == "name" {
@@ -8137,7 +8160,7 @@ func ensurePath(root *PatchNode, segs []string) *PatchNode {
             if !hasName {
                 nameNode := &PatchNode{
                     XMLName: xml.Name{Local: "name"},
-                    Text:    id,
+                    Text:    key,
                 }
                 child.Children = append([]*PatchNode{nameNode}, child.Children...)
             }
