@@ -8056,7 +8056,7 @@ func LeafMap(root *Node) map[string]string {
 func segmentWithSiblingIndex(n *Node) string {
 	// <name> child
 	if v, ok := childNameValue(n); ok && v != "" {
-		return fmt.Sprintf("%s[name='%s']", n.Name, v)
+		return fmt.Sprintf("%s[name=%q]", n.Name, v)
 	}
 
 	// No <name> child. If there's no parent, just return the tag.
@@ -8067,10 +8067,7 @@ func segmentWithSiblingIndex(n *Node) string {
 	// Walk older siblings to figure out which occurrence this is.
 	idx := 0
 	for _, sib := range n.Parent.Children {
-		if sib == n {
-			break
-		}
-		if sib.Name == n.Name {
+		if sib !=n && sib.Name == n.Name {
 			if _, has := childNameValue(sib); !has {
 				idx++
 			}
@@ -8120,7 +8117,7 @@ func ensurePath(root *PatchNode, segs []string) *PatchNode {
 	cur := root
 	for _, s := range segs {
 		name := s
-		if i := strings.IndexByte(s, '['); i >= 0 {
+        if i := strings.IndexByte(s, '#'); i >= 0 {
 			name = s[:i]
 		}
 		var child *PatchNode
@@ -9386,6 +9383,8 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
     name := plan.ResourceName.ValueString()
 
     diff, err := createDiffPatch(changes, name)
+
+    resp.Diagnostics.AddWarning("Diff", fmt.Sprintf("Diff: %s", diff))
 
 	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
 	if err != nil {
