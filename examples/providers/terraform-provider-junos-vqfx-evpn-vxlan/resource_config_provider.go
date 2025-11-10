@@ -8170,6 +8170,47 @@ func ensurePath(root *PatchNode, segs []string) *PatchNode {
 	return cur
 }
 
+func splitPathRespectQuotes(path string) []string {
+	var segs []string
+	var sb strings.Builder
+	inQuotes := false
+
+	for i := 0; i < len(path); i++ {
+		ch := path[i]
+
+		switch ch {
+		case '"':
+			inQuotes = !inQuotes
+			sb.WriteByte(ch)
+
+		case '/':
+			if inQuotes {
+				sb.WriteByte(ch)
+			} else {
+				// new segment boundary
+				if sb.Len() > 0 {
+					segs = append(segs, sb.String())
+					sb.Reset()
+				}
+			}
+
+		default:
+			sb.WriteByte(ch)
+		}
+	}
+
+	if sb.Len() > 0 {
+		segs = append(segs, sb.String())
+	}
+
+	// remove a leading empty segment if the path starts with '/'
+	if len(segs) > 0 && segs[0] == "" {
+		segs = segs[1:]
+	}
+
+	return segs
+}
+
 // createDiffPatch creates a string of the given changes map
 func createDiffPatch(changes map[string]struct {
 	op   string
@@ -8179,9 +8220,12 @@ func createDiffPatch(changes map[string]struct {
 	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
 
 	for path, change := range changes {
-		segs := strings.Split(path, "/")[1:] // drop leading "configuration"
+		segs := splitPathRespectQuotes(path)[1:] // drop leading "configuration"
 		parent := ensurePath(root, segs[:len(segs)-1])
 		leafName := segs[len(segs)-1]
+        if i := strings.IndexByte(leafName, '#'); i >= 0 {
+            leafName = leafName[:i]
+        }
 
 		switch change.op {
 		case "delete":
