@@ -8097,39 +8097,51 @@ type PatchNode struct {
 func ensurePath(root *PatchNode, segs []string) *PatchNode {
 	cur := root
 	for _, s := range segs {
-		name := s
+		// Parse name and optional id value
+        name := s
+        var id string
         if i := strings.IndexByte(s, '['); i >= 0 {
             name = s[:i]
-
-            // Get ID value 
-            start := strings.IndexByte(s, '"')
+            // Extract value between quotes in [id="..."]
+            start := strings.IndexByte(s[i:], '"')
             end := strings.LastIndexByte(s, '"')
-            
-            var val string
-            if start >= 0 && end > start {
-                val = s[start+1 : end]
+            if start >= 0 && end > i+start {
+                // adjust start to absolute index
+                start = i + start
+                id = s[start+1 : end]
             }
-
-            // Make the <name> node
-            nameNode := &PatchNode{
-                XMLName: xml.Name{Local: "name"},
-                Text:  val,
-            }
-            // Prepend it to n.Children
-            cur.Children = append([]*PatchNode{nameNode}, cur.Children...)
         }
 
-		var child *PatchNode
-		for _, c := range cur.Children {
-			if c.XMLName.Local == name {
-				child = c
-				break
-			}
-		}
-		if child == nil {
-			child = &PatchNode{XMLName: xml.Name{Local: name}}
-			cur.Children = append(cur.Children, child)
-		}
+        // Find or create the child element for this name
+        var child *PatchNode
+        for _, c := range cur.Children {
+            if c.XMLName.Local == name {
+                child = c
+                break
+            }
+        }
+        if child == nil {
+            child = &PatchNode{XMLName: xml.Name{Local: name}}
+            cur.Children = append(cur.Children, child)
+        }
+
+        // If we have a [id="..."], ensure the child has a <id> first-child
+        if id != "" {
+            hasName := false
+            for _, c := range child.Children {
+                if c.XMLName.Local == "name" {
+                    hasName = true
+                    break
+                }
+            }
+            if !hasName {
+                nameNode := &PatchNode{
+                    XMLName: xml.Name{Local: "name"},
+                    Text:    id,
+                }
+                child.Children = append([]*PatchNode{nameNode}, child.Children...)
+            }
+        }
 		cur = child
 	}
 	return cur
@@ -8164,8 +8176,6 @@ func createDiffPatch(changes map[string]struct {
 		}
 	}
 
-    // insertGroupName(root, group)
-
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
 	enc := xml.NewEncoder(&buf)
@@ -8179,25 +8189,6 @@ func createDiffPatch(changes map[string]struct {
 
 	return diff, nil
 }
-
-/*
-// Finds <groups> nodes under the given PatchNode and injects a <name>...</name> node as the first child.
-func insertGroupName(n *PatchNode, group string) {
-	if n.XMLName.Local == "groups" {
-		// Make the <name> node
-		nameNode := &PatchNode{
-			XMLName: xml.Name{Local: "name"},
-			Text:    group,
-		}
-		// Prepend it to n.Children
-		n.Children = append([]*PatchNode{nameNode}, n.Children...)
-	}
-
-	for _, c := range n.Children {
-		insertGroupName(c, group)
-	}
-}
-*/
 
 // Update implements resource.Resource.
 func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
