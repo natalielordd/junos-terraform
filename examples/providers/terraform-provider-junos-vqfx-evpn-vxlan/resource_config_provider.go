@@ -8031,7 +8031,18 @@ func LeafMap(root *Node) map[string]string {
 		// Plain scalar leaf
 		case !otherKids && n.Name != "name" && textVal != "":
 			path := strings.Join(stack, "/")
-			out[path] = textVal
+                i := 0
+                basePath := path
+
+                for {
+                    if _, ok := out[path]; !ok {
+                        break
+                    }
+                    i++
+                    path = fmt.Sprintf("%s#%d", basePath, i)
+                }
+
+                out[path] = textVal
 
 		//  Node whose only real payload is <name>child</name>
 		case !otherKids && hasName && n.Name != "name" && textVal == "":
@@ -8204,7 +8215,9 @@ func createDiffPatch(changes map[string]struct {
 		segs := splitPathRespectQuotes(path)[1:] // drop leading "configuration"
 		parent := ensurePath(root, segs[:len(segs)-1])
 		leafName := segs[len(segs)-1]
-
+        if i := strings.IndexByte(leafName, '#'); i >= 0 {
+            leafName = leafName[:i]
+        }
 		switch change.op {
 		case "delete":
 			node := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "delete"}
@@ -9395,6 +9408,8 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
     planMap := LeafMap(planTree)
     stateMap := LeafMap(stateTree)
 
+    resp.Diagnostics.AddWarning("Plan", fmt.Sprintf("Plan: %+v", planMap))
+
     // Diff struct (create/delete/replace):
     changes := make(map[string]struct {
         op   string // "create" | "delete" | "replace"
@@ -9421,10 +9436,10 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
     diff, err := createDiffPatch(changes, name)
 
-    resp.Diagnostics.AddWarning("Diff", fmt.Sprintf("Diff: %s", diff))
+    
 
 	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
-	if err != nil {
+	iresp.Diagnostics.AddWarning("Diff", fmt.Sprintf("Diff: %s", diff))f err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())
 		return
 	}
