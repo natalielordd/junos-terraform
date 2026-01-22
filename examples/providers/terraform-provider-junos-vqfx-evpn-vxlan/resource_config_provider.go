@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/xml"
 	"strings"
+	"fmt"
+    "io"
+    "bytes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -7929,36 +7932,344 @@ func (r *resource_Apply_Groups) Read(ctx context.Context, req resource.ReadReque
 
 
 
+// XML tree nodes
+type Node struct {
+	Name     string           
+	Attrs    map[string]string 
+	Text     string           
+	Children []*Node           
+    Parent   *Node 
+}
+
+// Get XML bytes from typed config 
+func marshalConfig(c xml_Configuration) ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("", "  ")
+	if err := enc.Encode(c); err != nil {
+		return nil, err
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// Build XML tree
+func BuildTree(xmlBytes []byte) (*Node, error) {
+	dec := xml.NewDecoder(bytes.NewReader(xmlBytes))
+	var stack []*Node
+	var root *Node
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			n := &Node{
+				Name:  t.Name.Local,
+				Attrs: map[string]string{},
+			}
+			for _, a := range t.Attr {
+				n.Attrs[a.Name.Local] = a.Value
+			}
+			if len(stack) == 0 {
+				root = n
+			} else {
+				parent := stack[len(stack)-1]
+                n.Parent = parent
+				parent.Children = append(parent.Children, n)
+			}
+			stack = append(stack, n)
+
+		case xml.EndElement:
+			// Pop
+			stack = stack[:len(stack)-1]
+
+		case xml.CharData:
+			// Accumulate trimmed text on current node
+			if len(stack) == 0 {
+				continue
+			}
+			txt := strings.TrimSpace(string(t))
+			if txt != "" {
+				cur := stack[len(stack)-1]
+				// Keep a single space between chunks if needed
+				if cur.Text == "" {
+					cur.Text = txt
+				} else {
+					cur.Text += " " + txt
+				}
+			}
+		}
+	}
+	return root, nil
+}
+
+// LeafMap builds a flat path -> value map
+func LeafMap(root *Node) map[string]string {
+	out := make(map[string]string)
+
+	var walk func(n *Node, stack []string)
+	walk = func(n *Node, stack []string) {
+		// Build a stable/unique path segment for this node
+		seg := segmentWithSiblingIndex(n)
+		stack = append(stack, seg)
+
+		nameVal, hasName := childNameValue(n)
+		otherKids := hasNonNameChildren(n)
+		textVal := strings.TrimSpace(n.Text)
+
+		switch {
+		// Plain scalar leaf
+		case !otherKids && n.Name != "name" && textVal != "":
+			path := strings.Join(stack, "/")
+			out[path] = textVal
+
+		//  Node whose only real payload is <name>child</name>
+		case !otherKids && hasName && n.Name != "name" && textVal == "":
+			path := strings.Join(stack, "/")
+			out[path] = nameVal
+
+		default:
+			// Keep walking into children, but skip <name> because it was already used as a predicate or as the leaf value.
+			for _, ch := range n.Children {
+				if ch.Name == "name" {
+					continue
+				}
+				walk(ch, stack)
+			}
+		}
+	}
+
+	walk(root, nil)
+	return out
+}
+
+
+func segmentWithSiblingIndex(n *Node) string {
+	// <name> child
+	if v, ok := childNameValue(n); ok && v != "" {
+		return fmt.Sprintf("%s[name=%q]", n.Name, v)
+	}
+
+	return n.Name
+}
+
+// childNameValue finds an immediate <name> childs text.
+func childNameValue(n *Node) (string, bool) {
+	for _, ch := range n.Children {
+		if ch.Name == "name" {
+			val := strings.TrimSpace(ch.Text)
+			if val != "" {
+				return val, true
+			}
+		}
+	}
+	return "", false
+}
+
+// hasNonNameChildren reports whether n has any element children other than <name>.
+func hasNonNameChildren(n *Node) bool {
+	for _, ch := range n.Children {
+		if ch.Name != "" && ch.Name != "name" {
+			return true
+		}
+	}
+	return false
+}
+
+// PatchNode represents a minimal XML element with an operation
+type PatchNode struct {
+	XMLName xml.Name
+	AttrOp  string  `xml:"operation,attr,omitempty"`
+	Text    string  `xml:",chardata"`
+	Children []*PatchNode `xml:",any"`
+}
+
+// ensurePath builds nested XML elements for the given path segments
+func ensurePath(root *PatchNode, segs []string) *PatchNode {
+	cur := root
+	for _, s := range segs {
+		// Parse name and optional key value
+        name := s
+        var key string
+        if i := strings.IndexByte(s, '#'); i >= 0 {
+            name = s[:i]
+        }
+        if i := strings.IndexByte(s, '['); i >= 0 {
+            name = s[:i]
+            // Extract value between quotes in [name="..."]
+            start := strings.IndexByte(s[i:], '"')
+            end := strings.LastIndexByte(s, '"')
+            if start >= 0 && end > i+start {
+                // adjust start to absolute index
+                start = i + start
+                key = s[start+1 : end]
+            }
+        }
+
+        // Find or create the child element for this name
+        var child *PatchNode
+        for _, c := range cur.Children {
+            if c.XMLName.Local == name {
+                child = c
+                break
+            }
+        }
+        if child == nil {
+            child = &PatchNode{XMLName: xml.Name{Local: name}}
+            cur.Children = append(cur.Children, child)
+        }
+
+        // If we have a [name="..."], ensure the child has a <name> first-child
+        if key != "" {
+            hasName := false
+            for _, c := range child.Children {
+                if c.XMLName.Local == "name" {
+                    hasName = true
+                    break
+                }
+            }
+            if !hasName {
+                nameNode := &PatchNode{
+                    XMLName: xml.Name{Local: "name"},
+                    Text:    key,
+                }
+                child.Children = append([]*PatchNode{nameNode}, child.Children...)
+            }
+        }
+		cur = child
+	}
+	return cur
+}
+
+func splitPathRespectQuotes(path string) []string {
+	var segs []string
+	var sb strings.Builder
+	inQuotes := false
+
+	for i := 0; i < len(path); i++ {
+		ch := path[i]
+
+		switch ch {
+		case '"':
+			inQuotes = !inQuotes
+			sb.WriteByte(ch)
+
+		case '/':
+			if inQuotes {
+				sb.WriteByte(ch)
+			} else {
+				// new segment boundary
+				if sb.Len() > 0 {
+					segs = append(segs, sb.String())
+					sb.Reset()
+				}
+			}
+
+		default:
+			sb.WriteByte(ch)
+		}
+	}
+
+	if sb.Len() > 0 {
+		segs = append(segs, sb.String())
+	}
+
+	// remove a leading empty segment if the path starts with '/'
+	if len(segs) > 0 && segs[0] == "" {
+		segs = segs[1:]
+	}
+
+	return segs
+}
+
+// createDiffPatch creates a string of the given changes map
+func createDiffPatch(changes map[string]struct {
+	op   string
+	oldV string
+	newV string
+}, group string) (string, error) {
+	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
+
+	for path, change := range changes {
+		segs := splitPathRespectQuotes(path)[1:] // drop leading "configuration"
+		parent := ensurePath(root, segs[:len(segs)-1])
+		leafName := segs[len(segs)-1]
+
+		switch change.op {
+		case "delete":
+			node := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "delete"}
+			parent.Children = append(parent.Children, node)
+
+		case "create":
+			node := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "create", Text: change.newV}
+			parent.Children = append(parent.Children, node)
+
+		case "replace":
+			delNode := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "delete"}
+			addNode := &PatchNode{XMLName: xml.Name{Local: leafName}, AttrOp: "create", Text: change.newV}
+			parent.Children = append(parent.Children, delNode, addNode)
+		}
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("", "  ")
+	if err := enc.Encode(root); err != nil {
+		return "", err
+	}
+	enc.Flush()
+
+    diff := buf.String()
+
+	return diff, nil
+}
+
 // Update implements resource.Resource.
 func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	
 	var plan Groups_Model
+	var state Groups_Model
+
+	// Get plan and state
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	// Check for errors
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	var config xml_Configuration
-	config.Groups.Name = plan.ResourceName.ValueStringPointer()
-    
 	
-    var var_chassis []Chassis_Model
-    if plan.Chassis.IsNull() {
-        var_chassis = []Chassis_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Chassis.ElementsAs(ctx, &var_chassis, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Chassis = make([]xml_Chassis, len(var_chassis))
+	BuildXMLConfig := func(plan Groups_Model)(config xml_Configuration){
+
+        config.Groups.Name = plan.ResourceName.ValueStringPointer()
     
-    for i_chassis, v_chassis := range var_chassis {
-        var var_chassis_aggregated_devices []Chassis_Aggregated_devices_Model
-        resp.Diagnostics.Append(v_chassis.Aggregated_devices.ElementsAs(ctx, &var_chassis_aggregated_devices, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		
+		var var_chassis []Chassis_Model
+		if plan.Chassis.IsNull() {
+			var_chassis = []Chassis_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Chassis.ElementsAs(ctx, &var_chassis, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Chassis = make([]xml_Chassis, len(var_chassis))
+		
+		for i_chassis, v_chassis := range var_chassis {
+			var var_chassis_aggregated_devices []Chassis_Aggregated_devices_Model
+			resp.Diagnostics.Append(v_chassis.Aggregated_devices.ElementsAs(ctx, &var_chassis_aggregated_devices, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Chassis[i_chassis].Aggregated_devices = make([]xml_Chassis_Aggregated_devices, len(var_chassis_aggregated_devices))
         
 		for i_chassis_aggregated_devices, v_chassis_aggregated_devices := range var_chassis_aggregated_devices {
@@ -7973,25 +8284,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
             config.Groups.Chassis[i_chassis].Aggregated_devices[i_chassis_aggregated_devices].Ethernet[i_chassis_aggregated_devices_ethernet].Device_count = v_chassis_aggregated_devices_ethernet.Device_count.ValueStringPointer()
         }
         }
-    }
-	
-    var var_forwarding_options []Forwarding_options_Model
-    if plan.Forwarding_options.IsNull() {
-        var_forwarding_options = []Forwarding_options_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Forwarding_options.ElementsAs(ctx, &var_forwarding_options, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Forwarding_options = make([]xml_Forwarding_options, len(var_forwarding_options))
-    
-    for i_forwarding_options, v_forwarding_options := range var_forwarding_options {
-        var var_forwarding_options_storm_control_profiles []Forwarding_options_Storm_control_profiles_Model
-        resp.Diagnostics.Append(v_forwarding_options.Storm_control_profiles.ElementsAs(ctx, &var_forwarding_options_storm_control_profiles, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_forwarding_options []Forwarding_options_Model
+		if plan.Forwarding_options.IsNull() {
+			var_forwarding_options = []Forwarding_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Forwarding_options.ElementsAs(ctx, &var_forwarding_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Forwarding_options = make([]xml_Forwarding_options, len(var_forwarding_options))
+		
+		for i_forwarding_options, v_forwarding_options := range var_forwarding_options {
+			var var_forwarding_options_storm_control_profiles []Forwarding_options_Storm_control_profiles_Model
+			resp.Diagnostics.Append(v_forwarding_options.Storm_control_profiles.ElementsAs(ctx, &var_forwarding_options_storm_control_profiles, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles = make([]xml_Forwarding_options_Storm_control_profiles, len(var_forwarding_options_storm_control_profiles))
         
 		for i_forwarding_options_storm_control_profiles, v_forwarding_options_storm_control_profiles := range var_forwarding_options_storm_control_profiles {
@@ -8004,25 +8315,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 	    config.Groups.Forwarding_options[i_forwarding_options].Storm_control_profiles[i_forwarding_options_storm_control_profiles].All = make([]xml_Forwarding_options_Storm_control_profiles_All, len(var_forwarding_options_storm_control_profiles_all))
         
         }
-    }
-	
-    var var_interfaces []Interfaces_Model
-    if plan.Interfaces.IsNull() {
-        var_interfaces = []Interfaces_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Interfaces.ElementsAs(ctx, &var_interfaces, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Interfaces = make([]xml_Interfaces, len(var_interfaces))
-    
-    for i_interfaces, v_interfaces := range var_interfaces {
-        var var_interfaces_interface []Interfaces_Interface_Model
-        resp.Diagnostics.Append(v_interfaces.Interface.ElementsAs(ctx, &var_interfaces_interface, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_interfaces []Interfaces_Model
+		if plan.Interfaces.IsNull() {
+			var_interfaces = []Interfaces_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Interfaces.ElementsAs(ctx, &var_interfaces, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Interfaces = make([]xml_Interfaces, len(var_interfaces))
+		
+		for i_interfaces, v_interfaces := range var_interfaces {
+			var var_interfaces_interface []Interfaces_Interface_Model
+			resp.Diagnostics.Append(v_interfaces.Interface.ElementsAs(ctx, &var_interfaces_interface, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Interfaces[i_interfaces].Interface = make([]xml_Interfaces_Interface, len(var_interfaces_interface))
         
 		for i_interfaces_interface, v_interfaces_interface := range var_interfaces_interface {
@@ -8145,25 +8456,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
             config.Groups.Interfaces[i_interfaces].Interface[i_interfaces_interface].Unit[i_interfaces_interface_unit].Mac = v_interfaces_interface_unit.Mac.ValueStringPointer()
         }
         }
-    }
-	
-    var var_policy_options []Policy_options_Model
-    if plan.Policy_options.IsNull() {
-        var_policy_options = []Policy_options_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Policy_options.ElementsAs(ctx, &var_policy_options, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Policy_options = make([]xml_Policy_options, len(var_policy_options))
-    
-    for i_policy_options, v_policy_options := range var_policy_options {
-        var var_policy_options_policy_statement []Policy_options_Policy_statement_Model
-        resp.Diagnostics.Append(v_policy_options.Policy_statement.ElementsAs(ctx, &var_policy_options_policy_statement, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_policy_options []Policy_options_Model
+		if plan.Policy_options.IsNull() {
+			var_policy_options = []Policy_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Policy_options.ElementsAs(ctx, &var_policy_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Policy_options = make([]xml_Policy_options, len(var_policy_options))
+		
+		for i_policy_options, v_policy_options := range var_policy_options {
+			var var_policy_options_policy_statement []Policy_options_Policy_statement_Model
+			resp.Diagnostics.Append(v_policy_options.Policy_statement.ElementsAs(ctx, &var_policy_options_policy_statement, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Policy_options[i_policy_options].Policy_statement = make([]xml_Policy_options_Policy_statement, len(var_policy_options_policy_statement))
         
 		for i_policy_options_policy_statement, v_policy_options_policy_statement := range var_policy_options_policy_statement {
@@ -8247,11 +8558,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
         }
         }
-        var var_policy_options_community []Policy_options_Community_Model
-        resp.Diagnostics.Append(v_policy_options.Community.ElementsAs(ctx, &var_policy_options_community, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_policy_options_community []Policy_options_Community_Model
+			resp.Diagnostics.Append(v_policy_options.Community.ElementsAs(ctx, &var_policy_options_community, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Policy_options[i_policy_options].Community = make([]xml_Policy_options_Community, len(var_policy_options_community))
         
 		for i_policy_options_community, v_policy_options_community := range var_policy_options_community {
@@ -8262,25 +8573,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 				config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Members = append(config.Groups.Policy_options[i_policy_options].Community[i_policy_options_community].Members, &v_policy_options_community_members)
 			}
         }
-    }
-	
-    var var_protocols []Protocols_Model
-    if plan.Protocols.IsNull() {
-        var_protocols = []Protocols_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Protocols.ElementsAs(ctx, &var_protocols, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Protocols = make([]xml_Protocols, len(var_protocols))
-    
-    for i_protocols, v_protocols := range var_protocols {
-        var var_protocols_bgp []Protocols_Bgp_Model
-        resp.Diagnostics.Append(v_protocols.Bgp.ElementsAs(ctx, &var_protocols_bgp, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_protocols []Protocols_Model
+		if plan.Protocols.IsNull() {
+			var_protocols = []Protocols_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Protocols.ElementsAs(ctx, &var_protocols, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Protocols = make([]xml_Protocols, len(var_protocols))
+		
+		for i_protocols, v_protocols := range var_protocols {
+			var var_protocols_bgp []Protocols_Bgp_Model
+			resp.Diagnostics.Append(v_protocols.Bgp.ElementsAs(ctx, &var_protocols_bgp, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Protocols[i_protocols].Bgp = make([]xml_Protocols_Bgp, len(var_protocols_bgp))
         
 		for i_protocols_bgp, v_protocols_bgp := range var_protocols_bgp {
@@ -8414,11 +8725,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
         }
         }
-        var var_protocols_evpn []Protocols_Evpn_Model
-        resp.Diagnostics.Append(v_protocols.Evpn.ElementsAs(ctx, &var_protocols_evpn, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_protocols_evpn []Protocols_Evpn_Model
+			resp.Diagnostics.Append(v_protocols.Evpn.ElementsAs(ctx, &var_protocols_evpn, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Protocols[i_protocols].Evpn = make([]xml_Protocols_Evpn, len(var_protocols_evpn))
         
 		for i_protocols_evpn, v_protocols_evpn := range var_protocols_evpn {
@@ -8432,11 +8743,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 			}
             config.Groups.Protocols[i_protocols].Evpn[i_protocols_evpn].No_core_isolation = v_protocols_evpn.No_core_isolation.ValueStringPointer()
         }
-        var var_protocols_lldp []Protocols_Lldp_Model
-        resp.Diagnostics.Append(v_protocols.Lldp.ElementsAs(ctx, &var_protocols_lldp, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_protocols_lldp []Protocols_Lldp_Model
+			resp.Diagnostics.Append(v_protocols.Lldp.ElementsAs(ctx, &var_protocols_lldp, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Protocols[i_protocols].Lldp = make([]xml_Protocols_Lldp, len(var_protocols_lldp))
         
 		for i_protocols_lldp, v_protocols_lldp := range var_protocols_lldp {
@@ -8451,11 +8762,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
             config.Groups.Protocols[i_protocols].Lldp[i_protocols_lldp].Interface[i_protocols_lldp_interface].Name = v_protocols_lldp_interface.Name.ValueStringPointer()
         }
         }
-        var var_protocols_igmp_snooping []Protocols_Igmp_snooping_Model
-        resp.Diagnostics.Append(v_protocols.Igmp_snooping.ElementsAs(ctx, &var_protocols_igmp_snooping, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_protocols_igmp_snooping []Protocols_Igmp_snooping_Model
+			resp.Diagnostics.Append(v_protocols.Igmp_snooping.ElementsAs(ctx, &var_protocols_igmp_snooping, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Protocols[i_protocols].Igmp_snooping = make([]xml_Protocols_Igmp_snooping, len(var_protocols_igmp_snooping))
         
 		for i_protocols_igmp_snooping, v_protocols_igmp_snooping := range var_protocols_igmp_snooping {
@@ -8470,25 +8781,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
             config.Groups.Protocols[i_protocols].Igmp_snooping[i_protocols_igmp_snooping].Vlan[i_protocols_igmp_snooping_vlan].Name = v_protocols_igmp_snooping_vlan.Name.ValueStringPointer()
         }
         }
-    }
-	
-    var var_routing_instances []Routing_instances_Model
-    if plan.Routing_instances.IsNull() {
-        var_routing_instances = []Routing_instances_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Routing_instances.ElementsAs(ctx, &var_routing_instances, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Routing_instances = make([]xml_Routing_instances, len(var_routing_instances))
-    
-    for i_routing_instances, v_routing_instances := range var_routing_instances {
-        var var_routing_instances_instance []Routing_instances_Instance_Model
-        resp.Diagnostics.Append(v_routing_instances.Instance.ElementsAs(ctx, &var_routing_instances_instance, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_routing_instances []Routing_instances_Model
+		if plan.Routing_instances.IsNull() {
+			var_routing_instances = []Routing_instances_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Routing_instances.ElementsAs(ctx, &var_routing_instances, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Routing_instances = make([]xml_Routing_instances, len(var_routing_instances))
+		
+		for i_routing_instances, v_routing_instances := range var_routing_instances {
+			var var_routing_instances_instance []Routing_instances_Instance_Model
+			resp.Diagnostics.Append(v_routing_instances.Instance.ElementsAs(ctx, &var_routing_instances_instance, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Routing_instances[i_routing_instances].Instance = make([]xml_Routing_instances_Instance, len(var_routing_instances_instance))
         
 		for i_routing_instances_instance, v_routing_instances_instance := range var_routing_instances_instance {
@@ -8618,25 +8929,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
         }
         }
-    }
-	
-    var var_routing_options []Routing_options_Model
-    if plan.Routing_options.IsNull() {
-        var_routing_options = []Routing_options_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Routing_options.ElementsAs(ctx, &var_routing_options, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Routing_options = make([]xml_Routing_options, len(var_routing_options))
-    
-    for i_routing_options, v_routing_options := range var_routing_options {
-        var var_routing_options_static []Routing_options_Static_Model
-        resp.Diagnostics.Append(v_routing_options.Static.ElementsAs(ctx, &var_routing_options_static, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_routing_options []Routing_options_Model
+		if plan.Routing_options.IsNull() {
+			var_routing_options = []Routing_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Routing_options.ElementsAs(ctx, &var_routing_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Routing_options = make([]xml_Routing_options, len(var_routing_options))
+		
+		for i_routing_options, v_routing_options := range var_routing_options {
+			var var_routing_options_static []Routing_options_Static_Model
+			resp.Diagnostics.Append(v_routing_options.Static.ElementsAs(ctx, &var_routing_options_static, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Routing_options[i_routing_options].Static = make([]xml_Routing_options_Static, len(var_routing_options_static))
         
 		for i_routing_options_static, v_routing_options_static := range var_routing_options_static {
@@ -8656,12 +8967,12 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 			}
         }
         }
-        config.Groups.Routing_options[i_routing_options].Router_id = v_routing_options.Router_id.ValueStringPointer()
-        var var_routing_options_forwarding_table []Routing_options_Forwarding_table_Model
-        resp.Diagnostics.Append(v_routing_options.Forwarding_table.ElementsAs(ctx, &var_routing_options_forwarding_table, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			config.Groups.Routing_options[i_routing_options].Router_id = v_routing_options.Router_id.ValueStringPointer()
+			var var_routing_options_forwarding_table []Routing_options_Forwarding_table_Model
+			resp.Diagnostics.Append(v_routing_options.Forwarding_table.ElementsAs(ctx, &var_routing_options_forwarding_table, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Routing_options[i_routing_options].Forwarding_table = make([]xml_Routing_options_Forwarding_table, len(var_routing_options_forwarding_table))
         
 		for i_routing_options_forwarding_table, v_routing_options_forwarding_table := range var_routing_options_forwarding_table {
@@ -8691,72 +9002,72 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
         }
         }
-    }
-	
-    var var_snmp []Snmp_Model
-    if plan.Snmp.IsNull() {
-        var_snmp = []Snmp_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Snmp.ElementsAs(ctx, &var_snmp, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Snmp = make([]xml_Snmp, len(var_snmp))
-    
-    for i_snmp, v_snmp := range var_snmp {
-        config.Groups.Snmp[i_snmp].Location = v_snmp.Location.ValueStringPointer()
-        config.Groups.Snmp[i_snmp].Contact = v_snmp.Contact.ValueStringPointer()
-        var var_snmp_community []Snmp_Community_Model
-        resp.Diagnostics.Append(v_snmp.Community.ElementsAs(ctx, &var_snmp_community, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_snmp []Snmp_Model
+		if plan.Snmp.IsNull() {
+			var_snmp = []Snmp_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Snmp.ElementsAs(ctx, &var_snmp, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Snmp = make([]xml_Snmp, len(var_snmp))
+		
+		for i_snmp, v_snmp := range var_snmp {
+			config.Groups.Snmp[i_snmp].Location = v_snmp.Location.ValueStringPointer()
+			config.Groups.Snmp[i_snmp].Contact = v_snmp.Contact.ValueStringPointer()
+			var var_snmp_community []Snmp_Community_Model
+			resp.Diagnostics.Append(v_snmp.Community.ElementsAs(ctx, &var_snmp_community, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Snmp[i_snmp].Community = make([]xml_Snmp_Community, len(var_snmp_community))
         
 		for i_snmp_community, v_snmp_community := range var_snmp_community {
             config.Groups.Snmp[i_snmp].Community[i_snmp_community].Name = v_snmp_community.Name.ValueStringPointer()
             config.Groups.Snmp[i_snmp].Community[i_snmp_community].Authorization = v_snmp_community.Authorization.ValueStringPointer()
         }
-    }
-	
-    var var_switch_options []Switch_options_Model
-    if plan.Switch_options.IsNull() {
-        var_switch_options = []Switch_options_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Switch_options.ElementsAs(ctx, &var_switch_options, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Switch_options = make([]xml_Switch_options, len(var_switch_options))
-    
-    for i_switch_options, v_switch_options := range var_switch_options {
-        var var_switch_options_vtep_source_interface []Switch_options_Vtep_source_interface_Model
-        resp.Diagnostics.Append(v_switch_options.Vtep_source_interface.ElementsAs(ctx, &var_switch_options_vtep_source_interface, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_switch_options []Switch_options_Model
+		if plan.Switch_options.IsNull() {
+			var_switch_options = []Switch_options_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Switch_options.ElementsAs(ctx, &var_switch_options, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Switch_options = make([]xml_Switch_options, len(var_switch_options))
+		
+		for i_switch_options, v_switch_options := range var_switch_options {
+			var var_switch_options_vtep_source_interface []Switch_options_Vtep_source_interface_Model
+			resp.Diagnostics.Append(v_switch_options.Vtep_source_interface.ElementsAs(ctx, &var_switch_options_vtep_source_interface, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Switch_options[i_switch_options].Vtep_source_interface = make([]xml_Switch_options_Vtep_source_interface, len(var_switch_options_vtep_source_interface))
         
 		for i_switch_options_vtep_source_interface, v_switch_options_vtep_source_interface := range var_switch_options_vtep_source_interface {
             config.Groups.Switch_options[i_switch_options].Vtep_source_interface[i_switch_options_vtep_source_interface].Interface_name = v_switch_options_vtep_source_interface.Interface_name.ValueStringPointer()
         }
-        var var_switch_options_route_distinguisher []Switch_options_Route_distinguisher_Model
-        resp.Diagnostics.Append(v_switch_options.Route_distinguisher.ElementsAs(ctx, &var_switch_options_route_distinguisher, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_switch_options_route_distinguisher []Switch_options_Route_distinguisher_Model
+			resp.Diagnostics.Append(v_switch_options.Route_distinguisher.ElementsAs(ctx, &var_switch_options_route_distinguisher, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Switch_options[i_switch_options].Route_distinguisher = make([]xml_Switch_options_Route_distinguisher, len(var_switch_options_route_distinguisher))
         
 		for i_switch_options_route_distinguisher, v_switch_options_route_distinguisher := range var_switch_options_route_distinguisher {
             config.Groups.Switch_options[i_switch_options].Route_distinguisher[i_switch_options_route_distinguisher].Rd_type = v_switch_options_route_distinguisher.Rd_type.ValueStringPointer()
         }
-        var var_switch_options_vrf_target []Switch_options_Vrf_target_Model
-        resp.Diagnostics.Append(v_switch_options.Vrf_target.ElementsAs(ctx, &var_switch_options_vrf_target, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_switch_options_vrf_target []Switch_options_Vrf_target_Model
+			resp.Diagnostics.Append(v_switch_options.Vrf_target.ElementsAs(ctx, &var_switch_options_vrf_target, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Switch_options[i_switch_options].Vrf_target = make([]xml_Switch_options_Vrf_target, len(var_switch_options_vrf_target))
         
 		for i_switch_options_vrf_target, v_switch_options_vrf_target := range var_switch_options_vrf_target {
@@ -8769,25 +9080,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 	    config.Groups.Switch_options[i_switch_options].Vrf_target[i_switch_options_vrf_target].Auto = make([]xml_Switch_options_Vrf_target_Auto, len(var_switch_options_vrf_target_auto))
         
         }
-    }
-	
-    var var_system []System_Model
-    if plan.System.IsNull() {
-        var_system = []System_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.System.ElementsAs(ctx, &var_system, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.System = make([]xml_System, len(var_system))
-    
-    for i_system, v_system := range var_system {
-        var var_system_login []System_Login_Model
-        resp.Diagnostics.Append(v_system.Login.ElementsAs(ctx, &var_system_login, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_system []System_Model
+		if plan.System.IsNull() {
+			var_system = []System_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.System.ElementsAs(ctx, &var_system, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.System = make([]xml_System, len(var_system))
+		
+		for i_system, v_system := range var_system {
+			var var_system_login []System_Login_Model
+			resp.Diagnostics.Append(v_system.Login.ElementsAs(ctx, &var_system_login, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.System[i_system].Login = make([]xml_System_Login, len(var_system_login))
         
 		for i_system_login, v_system_login := range var_system_login {
@@ -8815,22 +9126,22 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
             config.Groups.System[i_system].Login[i_system_login].Message = v_system_login.Message.ValueStringPointer()
         }
-        var var_system_root_authentication []System_Root_authentication_Model
-        resp.Diagnostics.Append(v_system.Root_authentication.ElementsAs(ctx, &var_system_root_authentication, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_system_root_authentication []System_Root_authentication_Model
+			resp.Diagnostics.Append(v_system.Root_authentication.ElementsAs(ctx, &var_system_root_authentication, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.System[i_system].Root_authentication = make([]xml_System_Root_authentication, len(var_system_root_authentication))
         
 		for i_system_root_authentication, v_system_root_authentication := range var_system_root_authentication {
             config.Groups.System[i_system].Root_authentication[i_system_root_authentication].Encrypted_password = v_system_root_authentication.Encrypted_password.ValueStringPointer()
         }
-        config.Groups.System[i_system].Host_name = v_system.Host_name.ValueStringPointer()
-        var var_system_services []System_Services_Model
-        resp.Diagnostics.Append(v_system.Services.ElementsAs(ctx, &var_system_services, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			config.Groups.System[i_system].Host_name = v_system.Host_name.ValueStringPointer()
+			var var_system_services []System_Services_Model
+			resp.Diagnostics.Append(v_system.Services.ElementsAs(ctx, &var_system_services, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.System[i_system].Services = make([]xml_System_Services, len(var_system_services))
         
 		for i_system_services, v_system_services := range var_system_services {
@@ -8932,11 +9243,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
             config.Groups.System[i_system].Services[i_system_services].Rest[i_system_services_rest].Enable_explorer = v_system_services_rest.Enable_explorer.ValueStringPointer()
         }
         }
-        var var_system_syslog []System_Syslog_Model
-        resp.Diagnostics.Append(v_system.Syslog.ElementsAs(ctx, &var_system_syslog, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_system_syslog []System_Syslog_Model
+			resp.Diagnostics.Append(v_system.Syslog.ElementsAs(ctx, &var_system_syslog, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.System[i_system].Syslog = make([]xml_System_Syslog, len(var_system_syslog))
         
 		for i_system_syslog, v_system_syslog := range var_system_syslog {
@@ -8985,11 +9296,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
         }
         }
-        var var_system_extensions []System_Extensions_Model
-        resp.Diagnostics.Append(v_system.Extensions.ElementsAs(ctx, &var_system_extensions, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+			var var_system_extensions []System_Extensions_Model
+			resp.Diagnostics.Append(v_system.Extensions.ElementsAs(ctx, &var_system_extensions, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.System[i_system].Extensions = make([]xml_System_Extensions, len(var_system_extensions))
         
 		for i_system_extensions, v_system_extensions := range var_system_extensions {
@@ -9019,25 +9330,25 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
         }
         }
         }
-    }
-	
-    var var_vlans []Vlans_Model
-    if plan.Vlans.IsNull() {
-        var_vlans = []Vlans_Model{}
-    }else {
-        resp.Diagnostics.Append(plan.Vlans.ElementsAs(ctx, &var_vlans, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
-    }
-    config.Groups.Vlans = make([]xml_Vlans, len(var_vlans))
-    
-    for i_vlans, v_vlans := range var_vlans {
-        var var_vlans_vlan []Vlans_Vlan_Model
-        resp.Diagnostics.Append(v_vlans.Vlan.ElementsAs(ctx, &var_vlans_vlan, false)...)
-        if resp.Diagnostics.HasError() {
-            return
-        }
+		}
+		
+		var var_vlans []Vlans_Model
+		if plan.Vlans.IsNull() {
+			var_vlans = []Vlans_Model{}
+		}else {
+			resp.Diagnostics.Append(plan.Vlans.ElementsAs(ctx, &var_vlans, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+		config.Groups.Vlans = make([]xml_Vlans, len(var_vlans))
+		
+		for i_vlans, v_vlans := range var_vlans {
+			var var_vlans_vlan []Vlans_Vlan_Model
+			resp.Diagnostics.Append(v_vlans.Vlan.ElementsAs(ctx, &var_vlans_vlan, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
 	    config.Groups.Vlans[i_vlans].Vlan = make([]xml_Vlans_Vlan, len(var_vlans_vlan))
         
 		for i_vlans_vlan, v_vlans_vlan := range var_vlans_vlan {
@@ -9055,9 +9366,64 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
             config.Groups.Vlans[i_vlans].Vlan[i_vlans_vlan].Vxlan[i_vlans_vlan_vxlan].Vni = v_vlans_vlan_vxlan.Vni.ValueStringPointer()
         }
         }
+		}
+		
+		return config
     }
-	
-	err := r.client.SendTransaction(plan.ResourceName.ValueString(), config, false)
+
+	// Build configs
+	var plan_config xml_Configuration
+	plan_config = BuildXMLConfig(plan)
+	if plan_config.Groups.Name == nil || *plan_config.Groups.Name == "" {
+		return
+	}
+	var state_config xml_Configuration
+	state_config = BuildXMLConfig(state)
+	if state_config.Groups.Name == nil || *state_config.Groups.Name == "" {
+		return
+	}
+
+    // Marshal to XML bytes
+    planXML, err := marshalConfig(plan_config)
+    stateXML, err := marshalConfig(state_config)
+
+    // Build trees
+    planTree, err := BuildTree(planXML)
+    stateTree, err := BuildTree(stateXML)
+
+    // Create leaf maps
+    planMap := LeafMap(planTree)
+    stateMap := LeafMap(stateTree)
+
+    // Diff struct (create/delete/replace):
+    changes := make(map[string]struct {
+        op   string // "create" | "delete" | "replace"
+        oldV string
+        newV string
+    })
+
+    // Deletions & candidates for replace
+    for k, lv := range stateMap {
+        if rv, ok := planMap[k]; !ok {
+            changes[k] = struct{ op, oldV, newV string }{"delete", lv, ""}
+        } else if rv != lv {
+            changes[k] = struct{ op, oldV, newV string }{"replace", lv, rv}
+        }
+    }
+    // Creations
+    for k, rv := range planMap {
+        if _, ok := stateMap[k]; !ok {
+            changes[k] = struct{ op, oldV, newV string }{"create", "", rv}
+        }
+    }
+
+    name := plan.ResourceName.ValueString()
+
+    diff, err := createDiffPatch(changes, name)
+
+    resp.Diagnostics.AddWarning("Diff", fmt.Sprintf("Diff: %s", diff))
+
+	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed while Sending", err.Error())
 		return
