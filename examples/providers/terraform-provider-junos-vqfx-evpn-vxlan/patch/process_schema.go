@@ -115,7 +115,7 @@ type SchemaRoot struct {
 // ------------------------- Process Trimmed Schema [START] -------------------------
 
 // Go raw string literal -> compiled index
-func UnmarshalTrimmedSchemaIndex(trimmedSchemaJSON []byte) (map[string]*NodeInfo, error) {
+func UnmarshalTrimmedSchemaIndex(trimmedSchemaJSON string) (map[string]*NodeInfo, error) {
 
 	var w TrimmedSchemaWrapper
 	if err := json.Unmarshal([]byte(trimmedSchemaJSON), &w); err != nil {
