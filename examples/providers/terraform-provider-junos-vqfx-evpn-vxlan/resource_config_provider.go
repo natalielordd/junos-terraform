@@ -11364,7 +11364,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	resp.Diagnostics.AddWarning("Parsing successful.", fmt.Sprintf("Total indexed paths:%s", len(idx)))
+	resp.Diagnostics.AddWarning("Parsing successful", fmt.Sprintf("Total indexed paths: ", len(idx)))
 
     // Deletions & candidates for replace
     for k, lv := range stateMap {
