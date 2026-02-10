@@ -11384,7 +11384,7 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
     name := plan.ResourceName.ValueString()
 
-    diff, err := patch.CreateDiffPatch(changes, name)
+    diff, err := patch.CreateDiffPatch(changes, name, idx)
 
 	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
 	resp.Diagnostics.AddWarning("Diff", fmt.Sprintf("Diff: %s", diff)) 

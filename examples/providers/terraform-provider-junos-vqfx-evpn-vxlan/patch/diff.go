@@ -147,7 +147,7 @@ func LeafMap(root *Node) map[string]string {
 }
 
 // createDiffPatch creates a string of the given changes map
-func CreateDiffPatch(changes map[string]Change, group string) (string, error) {
+func CreateDiffPatch(changes map[string]Change, group string, idx map[string]*NodeInfo) (string, error) {
 	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
 
 	for path, change := range changes {
