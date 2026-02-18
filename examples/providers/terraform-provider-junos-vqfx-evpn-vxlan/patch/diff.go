@@ -146,8 +146,31 @@ func LeafMap(root *Node) map[string]string {
 	return out
 }
 
-// createDiffPatch creates a string of the given changes map
-func CreateDiffPatch(changes map[string]Change, group string, idx map[string]*NodeInfo) (string, error) {
+// CreateDiffMap creates a map of differences between plan and state
+func CreateDiffMap(planMap map[string]string, stateMap map[string]string, idx map[string]*NodeInfo) (changes map[string]Change){
+	changes = make(map[string]Change)
+
+	// Deletions & candidates for replace
+    for k, lv := range stateMap {
+        if rv, ok := planMap[k]; !ok {
+            changes[k] = Change{Op: "delete", OldV: lv, NewV: ""}
+        } else if rv != lv {
+            changes[k] = Change{Op: "replace", OldV: lv, NewV: rv}
+        }
+    }
+
+    // Creations
+    for k, rv := range planMap {
+        if _, ok := stateMap[k]; !ok {
+            changes[k] = Change{Op: "create", OldV: "", NewV: rv}
+        }
+    }
+
+	return changes
+}
+
+// CreateDiffPatch creates a string of the given changes map
+func CreateDiffPatch(changes map[string]Change, group string) (string, error) {
 	root := &PatchNode{XMLName: xml.Name{Local: "configuration"}}
 
 	for path, change := range changes {

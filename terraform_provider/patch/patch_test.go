@@ -2286,7 +2286,7 @@ func TestCreateDiffPatch_ReplaceHostName_DeleteThenCreate(t *testing.T) {
   </groups>
 </configuration>`
 
-	diff, err := CreateDiffPatch(editLeaf, name, idx)
+	diff, err := CreateDiffPatch(editLeaf, name)
 	if err != nil {
 		t.Fatalf("CreateDiffPatch returned error: %v", err)
 	}

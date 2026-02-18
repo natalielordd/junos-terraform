@@ -11355,8 +11355,6 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
     resp.Diagnostics.AddWarning("Plan", fmt.Sprintf("Plan: %+v", planMap))
 
-    changes := make(map[string]patch.Change)
-
     // Parse Trimmed Schema to type map
     idx, err := patch.UnmarshalTrimmedSchemaIndex(TrimmedSchemaJSON)
 	if err != nil {
@@ -11366,25 +11364,11 @@ func (r *resource_Apply_Groups) Update(ctx context.Context, req resource.UpdateR
 
 	resp.Diagnostics.AddWarning("Parsing successful", fmt.Sprintf("Total indexed paths: %d", len(idx)))
 
-    // Deletions & candidates for replace
-    for k, lv := range stateMap {
-        if rv, ok := planMap[k]; !ok {
-            changes[k] = patch.Change{Op: "delete", OldV: lv, NewV: ""}
-        } else if rv != lv {
-            changes[k] = patch.Change{Op: "replace", OldV: lv, NewV: rv}
-        }
-    }
-
-    // Creations
-    for k, rv := range planMap {
-        if _, ok := stateMap[k]; !ok {
-            changes[k] = patch.Change{Op: "create", OldV: "", NewV: rv}
-        }
-    }
+    changes := patch.CreateDiffMap(planMap, stateMap, idx)
 
     name := plan.ResourceName.ValueString()
 
-    diff, err := patch.CreateDiffPatch(changes, name, idx)
+    diff, err := patch.CreateDiffPatch(changes, name)
 
 	err = r.client.SendUpdate(plan.ResourceName.ValueString(), diff, false)
 	resp.Diagnostics.AddWarning("Diff", fmt.Sprintf("Diff: %s", diff)) 
