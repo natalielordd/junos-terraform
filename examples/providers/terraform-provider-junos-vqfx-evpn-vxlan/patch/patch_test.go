@@ -1,6 +1,7 @@
 package patch
 
 import (
+  "os"
   "testing"
 )
 
@@ -2262,6 +2263,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+
+  // run tests
+	code := m.Run()
+	os.Exit(code)
 }
 
 func TestCreateDiffPatch_ReplaceHostName_DeleteThenCreate(t *testing.T) {
